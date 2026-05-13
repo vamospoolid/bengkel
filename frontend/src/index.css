@@ -1,0 +1,67 @@
+@import "tailwindcss";
+
+@layer base {
+  :root {
+    --background: 0 0% 3.9%;
+    --foreground: 0 0% 98%;
+    --primary: 15 100% 50%;
+  }
+}
+
+@theme {
+  --color-background: var(--background-color);
+  --color-foreground: var(--foreground-color);
+  --color-card: var(--card-color);
+  --color-border: var(--border-color);
+  --color-primary: var(--primary-color);
+  --color-muted: var(--muted-color);
+}
+
+:root {
+  --background-color: #000000;
+  --foreground-color: #fafafa;
+  --card-color: #0a0a0a;
+  --border-color: #1a1a1a;
+  --primary-color: #ff4500;
+  --muted-color: #121212;
+}
+
+[data-theme='light'] {
+  --background-color: #f8fafc;
+  --foreground-color: #0f172a;
+  --card-color: #ffffff;
+  --border-color: #e2e8f0;
+  --primary-color: #ff4500;
+  --muted-color: #f1f5f9;
+}
+
+body {
+  @apply bg-background text-foreground antialiased transition-colors duration-300;
+  font-family: 'Inter', sans-serif;
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  @apply bg-background;
+}
+
+::-webkit-scrollbar-thumb {
+  @apply bg-muted rounded-full;
+}
+
+.glass-card {
+  @apply bg-card/80 backdrop-blur-md border border-border shadow-sm;
+}
+
+[data-theme='light'] .glass-card {
+  @apply bg-card/70 border-white/40 shadow-[0_8px_30px_rgb(0,0,0,0.04)];
+}
+
+.hover-glow {
+  @apply transition-all duration-300 hover:shadow-[0_0_20px_rgba(255,69,0,0.2)] hover:border-primary/50;
+}

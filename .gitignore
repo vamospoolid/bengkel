@@ -1,0 +1,17 @@
+node_modules
+dist
+dist-electron
+release
+.vite
+.env
+*.db
+*.db-journal
+.wwebjs_auth
+.wwebjs_cache
+backend/node_modules
+frontend/node_modules
+backend/dist
+frontend/dist
+.DS_Store
+*.log
+.next
