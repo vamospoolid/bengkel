@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Search, ShoppingCart, Trash2, Plus, Minus, CreditCard, SearchIcon, History, X, Calendar, Wrench, Loader2, CheckCircle2, User as UserIcon, AlertCircle, RefreshCw, DollarSign, Printer, FileText, Smartphone, ScanLine } from 'lucide-react';
 import api from '../api';
 import Receipt from '../components/Receipt';
+import { toast } from 'react-hot-toast';
 import { type CustomerType } from '../data/mock';
 
 interface Product {
@@ -372,6 +373,20 @@ const POS: React.FC = () => {
   
   const processPayment = async () => {
     setIsCheckoutProcessing(true);
+    const localTransactionId = crypto.randomUUID();
+    
+    const checkoutData = {
+      id: localTransactionId,
+      cart,
+      plateNumber: (customerType === 'Umum' && plateNumber.trim()) ? plateNumber.trim() : null,
+      customerId: selectedCustomerId || null,
+      totalAmount: Number(total),
+      tax: Number(tax),
+      discount: Number(discount),
+      paymentType: paymentMethod.toUpperCase(),
+      workOrderId: workOrderId || null
+    };
+
     try {
       let finalCustomerId = selectedCustomerId;
 
@@ -385,52 +400,79 @@ const POS: React.FC = () => {
             whatsapp: customerWA.trim() || null
           });
           finalCustomerId = newCustRes.data.id;
+          checkoutData.customerId = finalCustomerId;
         } catch (err) {
           console.error('Failed to create customer automatically', err);
         }
       }
 
-      const res = await api.post('/pos/checkout', {
-        cart,
-        plateNumber: (customerType === 'Umum' && plateNumber.trim()) ? plateNumber.trim() : null,
-        customerId: finalCustomerId || null,
-        totalAmount: Number(total),
-        tax: Number(tax),
-        discount: Number(discount),
-        paymentType: paymentMethod.toUpperCase(),
-        workOrderId: workOrderId || null
-      });
+      const res = await api.post('/pos/checkout', checkoutData);
       
       const transaction = res.data.transaction;
       if (!transaction) throw new Error('Backend tidak mengembalikan data transaksi.');
 
-      setLastTransaction({
-        ...transaction,
-        items: cart,
-        customer: customers.find(c => c.id === selectedCustomerId),
-        vehicle: pulledWorkOrder?.vehicle || (plateNumber ? { plateNumber, model: pulledWorkOrder?.model } : null),
-        cashReceived: paymentMethod === 'tunai' ? Number(cashReceived) : null
-      });
-      
-      setShowPaymentModal(false);
-      setShowSuccessModal(true);
-      setCart([]);
-      setPlateNumber('');
-      setCashReceived(0);
-      setWorkOrderId(null);
-      setPulledWorkOrder(null);
-      fetchData();
-
-      // SILENT PRINT TRIGGER
-      if (autoPrint && transaction.id) {
-        handleSilentPrint(transaction.id);
-      }
+      completeLocalCheckout(transaction);
     } catch (error: any) {
       console.error('Checkout error detail:', error);
-      const msg = error.response?.data?.error || error.message || 'Gagal memproses pembayaran.';
-      alert(`ERROR: ${msg}`);
+      
+      // OFFLINE HANDLING
+      if (!navigator.onLine || error.code === 'ERR_NETWORK' || error.message === 'Network Error') {
+        saveToSyncQueue('/pos/checkout', checkoutData);
+        
+        // Emulate successful checkout for UI
+        const offlineTransaction = {
+          id: localTransactionId,
+          invoiceNo: `OFFLINE-${localTransactionId.substring(0, 8)}`,
+          createdAt: new Date().toISOString()
+        };
+        
+        completeLocalCheckout(offlineTransaction, true);
+      } else {
+        const msg = error.response?.data?.error || error.message || 'Gagal memproses pembayaran.';
+        alert(`ERROR: ${msg}`);
+      }
     } finally {
       setIsCheckoutProcessing(false);
+    }
+  };
+
+  const saveToSyncQueue = (url: string, data: any) => {
+    const queue = JSON.parse(localStorage.getItem('sync_queue') || '[]');
+    queue.push({
+      id: data.id || crypto.randomUUID(),
+      url,
+      data,
+      timestamp: Date.now()
+    });
+    localStorage.setItem('sync_queue', JSON.stringify(queue));
+  };
+
+  const completeLocalCheckout = (transaction: any, isOffline = false) => {
+    setLastTransaction({
+      ...transaction,
+      items: cart,
+      customer: customers.find(c => c.id === selectedCustomerId),
+      vehicle: pulledWorkOrder?.vehicle || (plateNumber ? { plateNumber, model: pulledWorkOrder?.model } : null),
+      cashReceived: paymentMethod === 'tunai' ? Number(cashReceived) : null
+    });
+    
+    setShowPaymentModal(false);
+    setShowSuccessModal(true);
+    setCart([]);
+    setPlateNumber('');
+    setCashReceived(0);
+    setWorkOrderId(null);
+    setPulledWorkOrder(null);
+    
+    if (isOffline) {
+      toast.success('Offline: Transaksi disimpan secara lokal! Akan dikirim saat online.');
+    } else {
+      fetchData();
+    }
+
+    // SILENT PRINT TRIGGER
+    if (autoPrint && transaction.id) {
+      handleSilentPrint(transaction.id);
     }
   };
 

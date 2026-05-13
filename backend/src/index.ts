@@ -979,8 +979,19 @@ app.post('/api/pos/checkout', authenticate, async (req, res) => {
 
       // 2. Create Transaction Header
       const invoiceNo = `INV-${new Date().getTime()}`;
+      
+      // Check if this ID already exists (Sync protection)
+      if (req.body.id) {
+        const existing = await tx.transaction.findUnique({ 
+          where: { id: req.body.id },
+          include: { items: true }
+        });
+        if (existing) return existing;
+      }
+
       const transaction = await tx.transaction.create({
         data: {
+          id: req.body.id || undefined, // Use provided UUID from frontend
           invoiceNo,
           vehicleId,
           customerId,

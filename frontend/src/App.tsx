@@ -21,6 +21,8 @@ import PurchaseSupplier from './pages/PurchaseSupplier';
 import PurchaseList from './pages/PurchaseList';
 import CustomerDisplay from './pages/CustomerDisplay';
 import Attendance from './pages/Attendance';
+import SyncProvider from './components/SyncProvider';
+import { Toaster } from 'react-hot-toast';
 
 
 function App() {
@@ -112,19 +114,22 @@ function App() {
   };
 
   return (
-    <Layout 
-      activePage={activePage} 
-      setActivePage={setActivePage} 
-      userRole={userRole} 
-      setUserRole={setUserRole}
-      onLogout={() => {
-        localStorage.removeItem('token');
-        localStorage.removeItem('user');
-        setUser(null);
-      }}
-    >
-      {renderPage()}
-    </Layout>
+    <SyncProvider>
+      <Toaster position="top-right" reverseOrder={false} />
+      <Layout 
+        activePage={activePage} 
+        setActivePage={setActivePage} 
+        userRole={userRole} 
+        setUserRole={setUserRole}
+        onLogout={() => {
+          localStorage.removeItem('token');
+          localStorage.removeItem('user');
+          setUser(null);
+        }}
+      >
+        {renderPage()}
+      </Layout>
+    </SyncProvider>
   );
 }
 
