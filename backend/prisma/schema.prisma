@@ -12,8 +12,8 @@ model User {
   name              String
   username          String            @unique
   password          String
-  role              Role              @default("CASHIER")
-  status            MechanicStatus    @default("AVAILABLE")
+  role              Role              @default(CASHIER)
+  status            MechanicStatus    @default(AVAILABLE)
   commissionRate    Float             @default(0.0)
   specialty         String?
   fingerprintId     String?           @unique
@@ -36,7 +36,7 @@ model Product {
   partNumber    String?
   compatibility String?
   category      String
-  vehicleType   VehicleType    @default("UMUM")
+  vehicleType   VehicleType    @default(UMUM)
   stock         Int            @default(0)
   minStock      Int            @default(5)
   purchasePrice Float          @default(0)
@@ -63,7 +63,7 @@ model Service {
 model Customer {
   id           String           @id @default(uuid())
   name         String
-  type         CustomerCategory @default("UMUM")
+  type         CustomerCategory @default(UMUM)
   phone        String?
   whatsapp     String?
   email        String?
@@ -94,7 +94,7 @@ model SupplierPurchase {
   purchaseDate DateTime       @default(now())
   dueDate      DateTime?
   totalAmount  Float
-  status       PurchaseStatus @default("LUNAS")
+  status       PurchaseStatus @default(LUNAS)
   notes        String?
   invoiceImage String?
   createdAt    DateTime       @default(now())
@@ -220,7 +220,7 @@ model WorkOrder {
   vehicleType   String          @default("MOTOR")
   mechanicId    String?
   creatorId     String?
-  status        WorkOrderStatus @default("QUEUED")
+  status        WorkOrderStatus @default(QUEUED)
   complaint     String?
   services      Json?
   partsUsed     Json?
@@ -249,7 +249,7 @@ model Attendance {
   date      DateTime         @default(now())
   clockIn   DateTime         @default(now())
   clockOut  DateTime?
-  status    AttendanceStatus @default("PRESENT")
+  status    AttendanceStatus @default(PRESENT)
   notes     String?
   location  String?
   createdAt DateTime         @default(now())
