@@ -4,6 +4,8 @@ import dotenv from 'dotenv';
 import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
+import { createServer } from 'http';
+import { Server } from 'socket.io';
 import { spawn, exec } from 'child_process';
 import { promisify } from 'util';
 import bcrypt from 'bcrypt';
@@ -36,10 +38,26 @@ process.on('unhandledRejection', (reason, promise) => {
 });
 
 const app = express();
+const httpServer = createServer(app);
+const io = new Server(httpServer, {
+  cors: {
+    origin: "*",
+    methods: ["GET", "POST"]
+  }
+});
+
+// Real-time events
+io.on('connection', (socket) => {
+  console.log('User connected to Socket.io:', socket.id);
+  socket.on('disconnect', () => {
+    console.log('User disconnected');
+  });
+});
+
 const JWT_SECRET = process.env.JWT_SECRET || 'supersecret';
 
-// Ensure uploads directories exist in D:/bengkel/image
-const BASE_UPLOAD_DIR = 'D:/bengkel/image';
+// Ensure uploads directories exist
+const BASE_UPLOAD_DIR = process.env.NODE_ENV === 'production' ? '/var/www/bengkel/uploads' : path.join(__dirname, '../../uploads');
 const uploadInvoicesDir = path.join(BASE_UPLOAD_DIR, 'invoices');
 const uploadServicesDir = path.join(BASE_UPLOAD_DIR, 'services');
 
@@ -76,8 +94,8 @@ const uploadService = multer({ storage: serviceStorage });
 
 app.use(cors());
 app.use(express.json());
-// Serve static files from D:/bengkel/image
-app.use('/uploads', express.static('D:/bengkel/image'));
+// Serve static files
+app.use('/uploads', express.static(BASE_UPLOAD_DIR));
 
 // Health Check
 app.get('/api/health', (req, res) => res.json({ status: 'ok' }));
@@ -166,8 +184,8 @@ app.post('/api/auth/login', async (req, res) => {
       token,
       user: { id: user.id, name: user.name, role: user.role }
     });
-  } catch (error) {
-    res.status(500).json({ error: 'Login failed' });
+  } catch (error: any) {
+    res.status(500).json({ error: 'Login failed', details: error.message });
   }
 });
 
@@ -216,12 +234,12 @@ app.delete('/api/auth/users/:id', authenticate, authorize(['ADMIN']), async (req
   const { id } = req.params;
   try {
     // Prevent deleting the main admin
-    const user = await prisma.user.findUnique({ where: { id } });
+    const user = await prisma.user.findUnique({ where: { id: s(id) } });
     if (user?.username === 'admin') {
       return res.status(400).json({ error: 'Cannot delete the main admin account' });
     }
 
-    await prisma.user.delete({ where: { id } });
+    await prisma.user.delete({ where: { id: s(id) } });
     res.json({ message: 'User deleted successfully' });
   } catch (error) {
     res.status(400).json({ error: 'Failed to delete user. They might have related data (transactions/tasks).' });
@@ -424,7 +442,7 @@ app.patch('/api/users/:id/fingerprint', authenticate, authorize(['ADMIN']), asyn
 
   try {
     const updated = await prisma.user.update({
-      where: { id },
+      where: { id: s(id) },
       data: { fingerprintId }
     });
     res.json({ message: 'Fingerprint ID updated', user: updated.name });
@@ -499,7 +517,7 @@ app.get('/api/mechanics/:id/performance', authenticate, async (req, res) => {
 
   try {
     const mechanic = await prisma.user.findUnique({
-      where: { id },
+      where: { id: s(id) },
       include: {
         _count: { select: { assignedTasks: true } }
       }
@@ -515,7 +533,7 @@ app.get('/api/mechanics/:id/performance', authenticate, async (req, res) => {
     // Fetch all service items handled by this mechanic with date filter
     const serviceItems = await prisma.transactionItem.findMany({
       where: {
-        mechanicId: id,
+        mechanicId: s(id),
         type: 'SERVICE',
         transaction: {
           status: 'COMPLETED',
@@ -531,7 +549,7 @@ app.get('/api/mechanics/:id/performance', authenticate, async (req, res) => {
     // Fetch work history with date filter
     const history = await prisma.workOrder.findMany({
       where: {
-        mechanicId: id,
+        mechanicId: s(id),
         createdAt: Object.keys(dateFilter).length > 0 ? dateFilter : undefined
       },
       take: 20,
@@ -712,6 +730,7 @@ app.patch('/api/products/:id', authenticate, authorize(['ADMIN', 'CASHIER']), as
       return updatedProduct;
     });
 
+    io.emit('product-updated', result);
     res.json(result);
   } catch (error: any) {
     res.status(400).json({ error: error.message || 'Update failed' });
@@ -785,7 +804,7 @@ app.get('/api/customers/:id/transactions', authenticate, async (req, res) => {
   const { id } = req.params;
   try {
     const transactions = await prisma.transaction.findMany({
-      where: { customerId: id },
+      where: { customerId: s(id) },
       include: {
         items: true,
         vehicle: true
@@ -847,7 +866,7 @@ app.patch('/api/customers/:id', authenticate, authorize(['ADMIN', 'CASHIER']), a
   const data = req.body;
   try {
     const updated = await prisma.customer.update({
-      where: { id },
+      where: { id: s(id) },
       data
     });
     res.json(updated);
@@ -861,18 +880,18 @@ app.delete('/api/customers/:id', authenticate, authorize(['ADMIN']), async (req,
   const { id } = req.params;
   try {
     // We check if customer has transactions
-    const txCount = await prisma.transaction.count({ where: { customerId: id } });
+    const txCount = await prisma.transaction.count({ where: { customerId: s(id) } });
 
     if (txCount > 0) {
       // If has transactions, only soft delete
       await prisma.customer.update({
-        where: { id },
+        where: { id: s(id) },
         data: { isActive: false }
       });
       res.json({ message: 'Pelanggan dinonaktifkan (Soft Delete) karena memiliki riwayat transaksi.' });
     } else {
       // If no transactions, we can physically delete
-      await prisma.customer.delete({ where: { id } });
+      await prisma.customer.delete({ where: { id: s(id) } });
       res.json({ message: 'Pelanggan berhasil dihapus permanen.' });
     }
   } catch (error) {
@@ -1031,6 +1050,8 @@ app.post('/api/pos/checkout', authenticate, async (req, res) => {
             data: { stock: { decrement: item.quantity } }
           });
 
+          io.emit('product-updated', updatedProduct);
+
           // Verify if user exists to prevent foreign key violation with stale sessions
           const logUser = await tx.user.findUnique({ where: { id: (req as any).user.id } });
 
@@ -1157,7 +1178,7 @@ app.post('/api/pos/return/:id', authenticate, async (req, res) => {
     const { reason } = req.body;
     const result = await prisma.$transaction(async (tx) => {
       const transaction = await tx.transaction.findUnique({
-        where: { id },
+        where: { id: s(id) },
         include: { items: true }
       });
 
@@ -1201,7 +1222,7 @@ app.post('/api/pos/return/:id', authenticate, async (req, res) => {
 
       // 2. Update Transaction Status
       await tx.transaction.update({
-        where: { id },
+        where: { id: s(id) },
         data: { status: 'RETURNED' }
       });
 
@@ -1448,7 +1469,7 @@ app.get('/api/vehicles/:id/history', authenticate, async (req, res) => {
   const { id } = req.params;
   try {
     const vehicle = await prisma.vehicle.findUnique({
-      where: { id },
+      where: { id: s(id) },
       include: {
         transactions: {
           include: {
@@ -1531,6 +1552,7 @@ app.post('/api/workshop/tasks', authenticate, async (req, res) => {
         status: 'QUEUED'
       }
     });
+    io.emit('task-created', task);
     res.status(201).json(task);
   } catch (error) {
     res.status(400).json({ error: 'Failed to create task' });
@@ -1546,6 +1568,7 @@ app.patch('/api/workshop/tasks/:id', authenticate, async (req, res) => {
       where: { id: id as string },
       data
     });
+    io.emit('task-updated', task);
     res.json(task);
   } catch (error) {
     res.status(400).json({ error: 'Update failed' });
@@ -3026,8 +3049,18 @@ app.post('/api/database/import', authenticate, authorize(['ADMIN']), async (req,
 });
 
 app.post('/api/database/reset', authenticate, authorize(['ADMIN']), async (req, res) => {
-  console.log('--- DATABASE RESET REQUESTED BY:', (req as any).user?.name, '---');
+  const { password } = req.body;
+  if (!password) return res.status(400).json({ error: 'Password konfirmasi diperlukan' });
+
   try {
+    // Verify admin password
+    const user = await prisma.user.findUnique({ where: { id: (req as any).user.id } });
+    if (!user) return res.status(404).json({ error: 'User tidak ditemukan' });
+
+    const isMatch = await bcrypt.compare(password, user.password);
+    if (!isMatch) return res.status(401).json({ error: 'Password konfirmasi salah' });
+
+    console.log('--- DATABASE RESET AUTHORIZED BY:', user.name, '---');
     // PRAGMA foreign_keys MUST run OUTSIDE of a Prisma transaction.
     // SQLite PRAGMA is a connection-level setting and does not work reliably inside transactions.
     console.log('Disabling foreign key checks (connection level)...');
@@ -3084,8 +3117,8 @@ app.use((err: any, req: express.Request, res: express.Response, next: express.Ne
   });
 });
 
-app.listen(Number(PORT), '0.0.0.0', () => {
-  console.log(`Backend server running on http://0.0.0.0:${PORT}`);
+httpServer.listen(Number(PORT), '0.0.0.0', () => {
+  console.log(`Backend server with Socket.io running on http://0.0.0.0:${PORT}`);
 
   // Protected Service Initialization
   try {

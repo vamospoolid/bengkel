@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ShoppingCart, Package, AlertTriangle, ArrowLeft, Share2, CheckCircle2, RotateCcw, Loader2 } from 'lucide-react';
+import { Package, AlertTriangle, ArrowLeft, Share2, CheckCircle2, RotateCcw, Loader2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import api from '../api';
 

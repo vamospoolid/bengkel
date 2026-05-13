@@ -2,8 +2,8 @@ import axios from 'axios';
 
 const getServerUrl = () => {
   const savedIp = localStorage.getItem('server_ip');
-  if (savedIp) return `http://${savedIp}:3002/api`;
-  return `http://${window.location.hostname}:3002/api`;
+  if (savedIp) return `http://${savedIp}/api`;
+  return `http://${window.location.hostname}/api`;
 };
 
 const api = axios.create({
@@ -12,7 +12,7 @@ const api = axios.create({
 
 // Update baseURL dynamically when needed
 export const updateApiBaseUrl = (newIp: string) => {
-  api.defaults.baseURL = `http://${newIp}:3002/api`;
+  api.defaults.baseURL = `http://${newIp}/api`;
 };
 
 export default api;

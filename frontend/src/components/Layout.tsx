@@ -9,8 +9,8 @@ interface LayoutProps {
   children: React.ReactNode;
   activePage: string;
   setActivePage: (page: string) => void;
-  userRole?: 'admin' | 'kasir';
-  setUserRole?: (role: 'admin' | 'kasir') => void;
+  userRole?: 'admin' | 'cashier';
+  setUserRole?: (role: 'admin' | 'cashier') => void;
   onLogout?: () => void;
 }
 

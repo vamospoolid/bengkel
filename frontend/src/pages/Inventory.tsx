@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Search, Plus, Filter, MoreVertical, Barcode, Loader2, X, Trash2, Edit3, History, Bike, Car, Layers, MapPin, Package, Tag, ChevronDown, ChevronRight, Minus, TrendingUp, ShoppingCart, DollarSign, CheckCircle2, Printer, Download, AlertTriangle } from 'lucide-react';
 import api from '../api';
 import BarcodeLabel from '../components/BarcodeLabel';
+import socket from '../socket';
 
 interface Product {
   id: string;
@@ -79,15 +80,15 @@ const Inventory: React.FC = () => {
     return localStorage.getItem('filter_low_stock') === 'true';
   });
 
-  const fetchProducts = async () => {
+  const fetchProducts = async (silent = false) => {
     try {
-      setIsLoading(true);
+      if (!silent) setIsLoading(true);
       const response = await api.get('/products');
       setParts(response.data);
     } catch (error) {
       console.error('Failed to fetch products', error);
     } finally {
-      setIsLoading(false);
+      if (!silent) setIsLoading(false);
     }
   };
 
@@ -107,9 +108,14 @@ const Inventory: React.FC = () => {
   useEffect(() => {
     fetchProducts();
     fetchSettings();
+
+    // Socket.io listener for real-time stock updates
+    socket.on('product-updated', () => fetchProducts(true));
+
     const handleClickOutside = () => setActiveMenuId(null);
     window.addEventListener('click', handleClickOutside);
     return () => {
+      socket.off('product-updated');
       window.removeEventListener('click', handleClickOutside);
       localStorage.removeItem('filter_low_stock'); // Clear on unmount
     };
@@ -763,7 +769,11 @@ const Inventory: React.FC = () => {
       {/* Edit/Add Modal - ENHANCED */}
       {showModal && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 md:p-8 bg-black/80 backdrop-blur-xl animate-in fade-in duration-300">
-          <form onSubmit={handleSubmit} className="bg-card w-full max-w-5xl rounded-[3.5rem] overflow-hidden shadow-2xl flex flex-col md:flex-row max-h-[90vh] border border-border/50 animate-in zoom-in duration-300">
+          <form 
+            onSubmit={handleSubmit} 
+            onKeyDown={(e) => { if (e.key === 'Enter') e.preventDefault(); }}
+            className="bg-card w-full max-w-5xl rounded-[3.5rem] overflow-hidden shadow-2xl flex flex-col md:flex-row max-h-[90vh] border border-border/50 animate-in zoom-in duration-300"
+          >
             <button type="button" onClick={() => setShowModal(false)} className="absolute top-8 right-8 p-3 bg-muted/50 hover:bg-red-500/10 hover:text-red-500 rounded-full transition-all z-20"><X className="w-6 h-6" /></button>
             
             {/* LEFT: SPECS & STOCK */}

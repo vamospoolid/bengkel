@@ -48,6 +48,7 @@ const Transactions: React.FC = () => {
   const [isProcessingReturn, setIsProcessingReturn] = useState(false);
   const [returnQuantities, setReturnQuantities] = useState<Record<string, number>>({});
   const [returnReason, setReturnReason] = useState('');
+  const [returnMessage, setReturnMessage] = useState<{type: 'success'|'error', text: string} | null>(null);
 
   // Filters State
   const [dateFilter, setDateFilter] = useState<'all' | 'today' | 'week' | 'month'>('all');
@@ -120,13 +121,19 @@ const Transactions: React.FC = () => {
   const handleReturn = async () => {
     if (!selectedTx) return;
 
-    // Filter only items with qty > 0
     const itemsToReturn = Object.entries(returnQuantities)
       .filter(([_, qty]) => qty > 0)
       .map(([id, qty]) => ({ id, qty }));
 
     if (itemsToReturn.length === 0) {
-      alert('Pilih minimal 1 item untuk diretur.');
+      setReturnMessage({ type: 'error', text: 'Pilih minimal 1 item untuk diretur.' });
+      setTimeout(() => setReturnMessage(null), 3000);
+      return;
+    }
+
+    if (!navigator.onLine) {
+      setReturnMessage({ type: 'error', text: 'Maaf, fitur retur wajib terhubung ke internet/server (Online).' });
+      setTimeout(() => setReturnMessage(null), 4000);
       return;
     }
 
@@ -139,18 +146,23 @@ const Transactions: React.FC = () => {
     if (!window.confirm(isFullReturn ? 'Return seluruh transaksi ini?' : 'Return item yang dipilih?')) return;
 
     setIsProcessingReturn(true);
+    setReturnMessage(null);
     try {
       await api.post('/pos/return-partial', {
         transactionId: selectedTx.id,
         itemsToReturn,
         reason: returnReason
       });
-      alert('Return berhasil diproses!');
-      setIsReturnModalOpen(false);
-      setSelectedTx(null);
-      fetchTransactions();
+      
+      setReturnMessage({ type: 'success', text: 'Return berhasil diproses!' });
+      setTimeout(() => {
+        setIsReturnModalOpen(false);
+        setSelectedTx(null);
+        setReturnMessage(null);
+        fetchTransactions();
+      }, 2000);
     } catch (error: any) {
-      alert(error.response?.data?.error || 'Gagal memproses return.');
+      setReturnMessage({ type: 'error', text: error.response?.data?.error || 'Gagal memproses return.' });
     } finally {
       setIsProcessingReturn(false);
     }
@@ -170,14 +182,24 @@ const Transactions: React.FC = () => {
   );
 
   const handlePrint = (tx: Transaction) => {
-    // We need to wait for the hidden receipt to render with the selected tx
-    // Or just create a temporary div to render it
     const printContent = document.getElementById('receipt-print-hidden');
     if (!printContent) return;
+
+    // Jika di Electron, gunakan silent print jika printer dipilih
+    const defaultPrinter = localStorage.getItem('default_printer');
+    if ((window as any).electron && defaultPrinter) {
+      const html = printContent ? printContent.innerHTML : '';
+      (window as any).electron.invoke('print-silent', { 
+        silent: true, 
+        deviceName: defaultPrinter,
+        margins: { marginType: 'none' }
+      }, `<html><head><style>@page { margin: 0; } body { margin: 0; padding: 0; font-family: monospace; }</style></head><body>${html}</body></html>`);
+      return;
+    }
     
     const windowPrint = window.open('', '', 'left=0,top=0,width=800,height=900,toolbar=0,scrollbars=0,status=0');
     if (!windowPrint) return;
-
+    // ... rest of windowPrint logic
     windowPrint.document.write(`
       <html>
         <head>
@@ -501,25 +523,7 @@ const Transactions: React.FC = () => {
                   </button>
                 )}
                 <button 
-                  onClick={async (e) => {
-                    const btn = e.currentTarget;
-                    const originalText = btn.innerHTML;
-                    try {
-                      btn.disabled = true;
-                      btn.innerHTML = '<span class="animate-spin">⏳</span> Mengirim...';
-                      await api.post('/print/receipt', { transactionId: selectedTx.id });
-                      btn.innerHTML = '✅ Berhasil';
-                      setTimeout(() => {
-                        btn.disabled = false;
-                        btn.innerHTML = originalText;
-                      }, 2000);
-                      fetchTransactions(); 
-                    } catch (err: any) {
-                      btn.disabled = false;
-                      btn.innerHTML = originalText;
-                      alert('Gagal cetak thermal: ' + (err.response?.data?.error || err.message));
-                    }
-                  }}
+                  onClick={() => handlePrint(selectedTx)}
                   className="flex-1 bg-primary text-white py-5 rounded-[1.5rem] font-black text-xs uppercase tracking-widest shadow-lg shadow-primary/20 transition-all flex items-center justify-center gap-3 disabled:opacity-50"
                   title="Cetak Silent ke Printer Kasir"
                 >
@@ -558,6 +562,12 @@ const Transactions: React.FC = () => {
                 <p className="text-xs text-muted-foreground font-medium italic">Tentukan jumlah barang yang akan dikembalikan.</p>
               </div>
             </div>
+
+            {returnMessage && (
+              <div className={`p-4 mb-6 rounded-2xl font-bold text-sm ${returnMessage.type === 'error' ? 'bg-red-500/10 text-red-500 border border-red-500/20' : 'bg-green-500/10 text-green-500 border border-green-500/20'}`}>
+                {returnMessage.text}
+              </div>
+            )}
 
             <div className="space-y-4 mb-10 max-h-60 overflow-y-auto pr-2 custom-scrollbar">
               {selectedTx.items.map((item) => {

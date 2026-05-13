@@ -1,0 +1,65 @@
+[TAILING] Tailing last 30 lines for [bengkel-backend] process (change the value with --lines option)
+/root/.pm2/logs/bengkel-backend-error.log last 30 lines:
+0|bengkel- |   Type 'string[]' is not assignable to type 'string'.
+0|bengkel- | 
+0|bengkel- |     at createTSError (/var/www/bengkel/backend/node_modules/ts-node/src/index.ts:859:12)
+0|bengkel- |     at reportTSError (/var/www/bengkel/backend/node_modules/ts-node/src/index.ts:863:19)
+0|bengkel- |     at getOutput (/var/www/bengkel/backend/node_modules/ts-node/src/index.ts:1077:36)
+0|bengkel- |     at Object.compile (/var/www/bengkel/backend/node_modules/ts-node/src/index.ts:1433:41)
+0|bengkel- |     at Module.m._compile (/var/www/bengkel/backend/node_modules/ts-node/src/index.ts:1617:30)
+0|bengkel- |     at Module._extensions..js (node:internal/modules/cjs/loader:1414:10)
+0|bengkel- |     at Object.require.extensions.<computed> [as .ts] (/var/www/bengkel/backend/node_modules/ts-node/src/index.ts:1621:12)
+0|bengkel- |     at Module.load (node:internal/modules/cjs/loader:1197:32)
+0|bengkel- |     at Function.Module._load (node:internal/modules/cjs/loader:1013:12)
+0|bengkel- |     at Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:128:12) {
+0|bengkel- |   diagnosticCodes: [
+0|bengkel- |     2322, 2322, 2322,
+0|bengkel- |     2322, 2322, 2322,
+0|bengkel- |     2322, 2322, 2322,
+0|bengkel- |     2322, 2322, 2322,
+0|bengkel- |     2322, 2322
+0|bengkel- |   ]
+0|bengkel- | }
+0|bengkel- | WA Init Error: Error: Failed to launch the browser process:  Code: 127
+0|bengkel- | 
+0|bengkel- | stderr:
+0|bengkel- | /root/.cache/puppeteer/chrome/linux-146.0.7680.31/chrome-linux64/chrome: error while loading shared libraries: libatk-1.0.so.0: cannot open shared object file: No such file or directory
+0|bengkel- | 
+0|bengkel- | TROUBLESHOOTING: https://pptr.dev/troubleshooting
+0|bengkel- | 
+0|bengkel- |     at ChildProcess.onClose (/var/www/bengkel/backend/node_modules/@puppeteer/browsers/src/launch.ts:537:11)
+0|bengkel- |     at ChildProcess.emit (node:events:529:35)
+0|bengkel- |     at ChildProcess._handle.onexit (node:internal/child_process:292:12)
+
+/root/.pm2/logs/bengkel-backend-out.log last 30 lines:
+0|bengkel- | [PRISMA] Using database at: file:./dev.db
+0|bengkel- | [PRISMA] Using database at: file:./dev.db
+0|bengkel- | [PRISMA] Using database at: file:./dev.db
+0|bengkel- | [PRISMA] Using database at: file:./dev.db
+0|bengkel- | [PRISMA] Using database at: file:./dev.db
+0|bengkel- | [PRISMA] Using database at: file:./dev.db
+0|bengkel- | [PRISMA] Using database at: file:./dev.db
+0|bengkel- | [PRISMA] Using database at: file:./dev.db
+0|bengkel- | [PRISMA] Using database at: file:./dev.db
+0|bengkel- | [PRISMA] Using database at: file:./dev.db
+0|bengkel- | [PRISMA] Using database at: file:./dev.db
+0|bengkel- | [PRISMA] Using database at: file:./dev.db
+0|bengkel- | [PRISMA] Using database at: file:./dev.db
+0|bengkel- | [PRISMA] Using database at: file:./dev.db
+0|bengkel- | [PRISMA] Using database at: file:./dev.db
+0|bengkel- | [PRISMA] Using database at: file:./dev.db
+0|bengkel- | [PRISMA] Using database at: file:./dev.db
+0|bengkel- | [PRISMA] Using database at: file:./dev.db
+0|bengkel- | [PRISMA] Using database at: file:./dev.db
+0|bengkel- | [PRISMA] Using database at: file:./dev.db
+0|bengkel- | [PRISMA] Using database at: file:./dev.db
+0|bengkel- | [PRISMA] Using database at: file:./dev.db
+0|bengkel- | [PRISMA] Using database at: file:./dev.db
+0|bengkel- | [PRISMA] Using database at: file:./dev.db
+0|bengkel- | [PRISMA] Using database at: file:./prisma/dev.db
+0|bengkel- | ◇ injected env (0) from .env // tip: ◈ encrypted .env [www.dotenvx.com]
+0|bengkel- | Backend starting...
+0|bengkel- | Backend server running on http://0.0.0.0:3002
+0|bengkel- | [Scheduler] Auto-backup job scheduled (Daily at 00:00)
+0|bengkel- | [Reminder] Scheduling at 9:00 daily (cron: 0 9 * * *)
+

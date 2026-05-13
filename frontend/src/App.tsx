@@ -31,7 +31,10 @@ function App() {
     return saved ? JSON.parse(saved) : null;
   });
   const [activePage, setActivePage] = useState('pos');
-  const [userRole, setUserRole] = useState<'admin' | 'kasir'>(user?.role?.toLowerCase() || 'kasir');
+  const [userRole, setUserRole] = useState<'admin' | 'cashier'>(() => {
+    const role = user?.role?.toLowerCase() || 'cashier';
+    return (role === 'kasir' || role === 'cashier') ? 'cashier' : 'admin';
+  });
   const [theme, setTheme] = useState<'dark' | 'light'>(() => {
     return (localStorage.getItem('theme') as 'dark' | 'light') || 'dark';
   });
@@ -55,10 +58,13 @@ function App() {
   }
 
   if (!user) {
-    return <Login onLoginSuccess={(u) => {
+    const onLoginSuccess = (u: any) => {
       setUser(u);
-      setUserRole(u.role.toLowerCase());
-    }} />;
+      const role = u.role?.toLowerCase();
+      setUserRole((role === 'kasir' || role === 'cashier') ? 'cashier' : 'admin');
+      setActivePage('pos');
+    };
+    return <Login onLoginSuccess={onLoginSuccess} />;
   }
 
   const renderPage = () => {

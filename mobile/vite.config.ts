@@ -4,11 +4,15 @@ import tailwindcss from '@tailwindcss/vite'
 import { VitePWA } from 'vite-plugin-pwa'
 import basicSsl from '@vitejs/plugin-basic-ssl'
 
+const isProduction = process.env.NODE_ENV === 'production'
+
 export default defineConfig({
+  base: './',
   plugins: [
     react(),
     tailwindcss(),
-    basicSsl(),
+    // basicSsl hanya untuk dev lokal (HTTPS di LAN), skip saat build production
+    ...(!isProduction ? [basicSsl()] : []),
     VitePWA({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'masked-icon.svg'],
@@ -35,6 +39,7 @@ export default defineConfig({
     })
   ],
   server: {
+    host: true,
     port: 5174, // Different from frontend (5173)
   }
 })

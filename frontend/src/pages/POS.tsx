@@ -121,8 +121,7 @@ const POS: React.FC = () => {
     setIsFetchingDone(true);
     try {
       const res = await api.get('/work-orders?status=DONE');
-      console.log('API CALL: /work-orders?status=DONE', res.data);
-      setDoneOrders(res.data || []);
+      setDoneOrders(Array.isArray(res.data) ? res.data : []);
     } catch (err: any) {
       console.error('Failed to fetch done orders:', err);
     } finally {
@@ -201,23 +200,64 @@ const POS: React.FC = () => {
   const fetchData = async () => {
     setIsLoading(true);
     setError(null);
+
+    // 1. Load dari Cache (Offline) dulu agar langsung tampil
     try {
-      // Fetch parts separately to ensure they show up even if others fail
-      const pRes = await api.get('/products').catch(e => { console.error('Parts fail', e); return { data: [] }; });
-      setParts(pRes.data || []);
+      const cachedParts = localStorage.getItem('offline_parts');
+      const cachedCust = localStorage.getItem('offline_customers');
+      const cachedMech = localStorage.getItem('offline_mechanics');
+      const cachedServ = localStorage.getItem('offline_services');
+      
+      if (cachedParts) {
+        const parsed = JSON.parse(cachedParts);
+        if (Array.isArray(parsed)) setParts(parsed);
+      }
+      if (cachedCust) {
+        const parsed = JSON.parse(cachedCust);
+        if (Array.isArray(parsed)) setCustomers(parsed);
+      }
+      if (cachedMech) {
+        const parsed = JSON.parse(cachedMech);
+        if (Array.isArray(parsed)) setMechanics(parsed);
+      }
+      if (cachedServ) {
+        const parsed = JSON.parse(cachedServ);
+        if (Array.isArray(parsed)) setServices(parsed);
+      }
+    } catch (e) {
+      console.warn("Gagal membaca cache offline");
+    }
 
-      const cRes = await api.get('/customers').catch(e => { console.error('Cust fail', e); return { data: [] }; });
-      setCustomers(cRes.data || []);
+    try {
+      // 2. Fetch data terbaru dari VPS
+      const pRes = await api.get('/products').catch(e => { console.error('Parts fail', e); return null; });
+      if (pRes && Array.isArray(pRes.data)) {
+        setParts(pRes.data);
+        localStorage.setItem('offline_parts', JSON.stringify(pRes.data));
+      }
 
-      const mRes = await api.get('/mechanics').catch(e => { console.error('Mech fail', e); return { data: [] }; });
-      setMechanics(mRes.data || []);
+      const cRes = await api.get('/customers').catch(e => { console.error('Cust fail', e); return null; });
+      if (cRes && Array.isArray(cRes.data)) {
+        setCustomers(cRes.data);
+        localStorage.setItem('offline_customers', JSON.stringify(cRes.data));
+      }
 
-      const sRes = await api.get('/services').catch(e => { console.error('Serv fail', e); return { data: [] }; });
-      setServices(sRes.data || []);
+      const mRes = await api.get('/mechanics').catch(e => { console.error('Mech fail', e); return null; });
+      if (mRes && Array.isArray(mRes.data)) {
+        setMechanics(mRes.data);
+        localStorage.setItem('offline_mechanics', JSON.stringify(mRes.data));
+      }
 
-      if (pRes.data.length === 0) {
+      const sRes = await api.get('/services').catch(e => { console.error('Serv fail', e); return null; });
+      if (sRes && Array.isArray(sRes.data)) {
+        setServices(sRes.data);
+        localStorage.setItem('offline_services', JSON.stringify(sRes.data));
+      }
+
+      if (pRes && pRes.data.length === 0) {
         console.warn('No parts returned from server');
       }
+
     } catch (err) {
       setError('Gagal menghubungi server. Pastikan backend di port 3002 menyala.');
     } finally {
@@ -477,13 +517,37 @@ const POS: React.FC = () => {
   };
 
   const handleSilentPrint = async (transactionId: string) => {
+    // 1. Cek jika di Electron dan ada printer yang dipilih
+    const defaultPrinter = localStorage.getItem('default_printer');
+    if ((window as any).electron && defaultPrinter) {
+      setIsPrinting(true);
+      try {
+        const printContent = document.getElementById('receipt-print-hidden');
+        const html = printContent ? printContent.innerHTML : '';
+        
+        await (window as any).electron.invoke('print-silent', { 
+          silent: true, 
+          deviceName: defaultPrinter,
+          pageSize: { width: 80000, height: 200000 },
+          margins: { marginType: 'none' }
+        }, `<html><head><style>@page { margin: 0; } body { margin: 0; padding: 0; font-family: monospace; }</style></head><body>${html}</body></html>`);
+        return;
+      } catch (err) {
+        console.error('Electron silent print failed', err);
+      } finally {
+        setIsPrinting(false);
+      }
+    }
+
+    // 2. Fallback ke cara lama (Backend print) atau manual
     setIsPrinting(true);
     try {
       await api.post('/print/receipt', { transactionId });
     } catch (err: any) {
       console.error('Silent print failed', err);
-      const errorMsg = err.response?.data?.error || err.message;
-      alert(`Gagal mencetak otomatis: ${errorMsg}`);
+      if (!(window as any).electron) {
+         console.warn('Printer tidak terdeteksi di server (Normal untuk Web)');
+      }
     } finally {
       setIsPrinting(false);
     }
@@ -493,6 +557,16 @@ const POS: React.FC = () => {
     const printContent = document.getElementById('receipt-print');
     if (!printContent) return;
     
+    // Jika di Electron, gunakan silent print jika printer dipilih
+    const defaultPrinter = localStorage.getItem('default_printer');
+    if ((window as any).electron && defaultPrinter) {
+      (window as any).electron.printSilent({ 
+        silent: true, 
+        deviceName: defaultPrinter 
+      });
+      return;
+    }
+
     const windowPrint = window.open('', '', 'left=0,top=0,width=800,height=900,toolbar=0,scrollbars=0,status=0');
     if (!windowPrint) return;
 

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Link, useLocation } from 'react-router-dom';
-import { Home, Wrench, Package, User, AlertCircle, CheckCircle2, Wifi, Settings as SettingsIcon, X, DollarSign, TrendingUp, TrendingDown, UserCheck, ArrowRight, Plus } from 'lucide-react';
+import { Home, Wrench, Package, User, AlertCircle, Wifi, Settings as SettingsIcon, X, DollarSign, TrendingUp, TrendingDown, UserCheck, ArrowRight, Plus, Loader2 } from 'lucide-react';
 import api, { updateApiBaseUrl } from './api';
 import { Servis } from './pages/Servis';
 import { StokPage } from './pages/StokPage';

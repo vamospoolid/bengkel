@@ -106,8 +106,8 @@ const Receipt: React.FC<ReceiptProps> = ({ workshop, transaction }) => {
           <div key={idx} className="space-y-0.5">
             <div className="uppercase font-bold leading-tight">{item.name}</div>
             <div className="flex justify-between">
-              <span>{item.quantity} x {item.price.toLocaleString()}</span>
-              <span className="font-bold">{(item.price * item.quantity).toLocaleString()}</span>
+              <span>{item.quantity} x {(item.price || 0).toLocaleString()}</span>
+              <span className="font-bold">{((item.price || 0) * item.quantity).toLocaleString()}</span>
             </div>
             {item.isMechanicFault && <div className="text-[8px] font-bold italic">[KESALAHAN MEKANIK - RP 0]</div>}
           </div>
@@ -120,37 +120,37 @@ const Receipt: React.FC<ReceiptProps> = ({ workshop, transaction }) => {
       <div className="space-y-0.5">
         <div className="flex justify-between">
           <span>SUBTOTAL</span>
-          <span>{subtotal.toLocaleString()}</span>
+          <span>{(subtotal || 0).toLocaleString()}</span>
         </div>
         
         {transaction.tax > 0 && (
           <div className="flex justify-between">
             <span>PAJAK</span>
-            <span>{transaction.tax.toLocaleString()}</span>
+            <span>{(transaction.tax || 0).toLocaleString()}</span>
           </div>
         )}
 
         {transaction.discount > 0 && (
           <div className="flex justify-between">
             <span>DISKON</span>
-            <span>-{transaction.discount.toLocaleString()}</span>
+            <span>-{(transaction.discount || 0).toLocaleString()}</span>
           </div>
         )}
 
         <div className="flex justify-between text-sm font-black py-1">
           <span>TOTAL</span>
-          <span>Rp {transaction.totalAmount.toLocaleString()}</span>
+          <span>Rp {(transaction.totalAmount || 0).toLocaleString()}</span>
         </div>
 
-        {transaction.paymentType === 'TUNAI' && transaction.cashReceived && (
+        {transaction.paymentType === 'TUNAI' && transaction.cashReceived !== undefined && (
           <div className="space-y-0.5 pt-1 border-t border-black border-dotted">
             <div className="flex justify-between">
               <span>BAYAR</span>
-              <span>{transaction.cashReceived.toLocaleString()}</span>
+              <span>{(transaction.cashReceived || 0).toLocaleString()}</span>
             </div>
             <div className="flex justify-between font-bold">
               <span>KEMBALI</span>
-              <span>{change.toLocaleString()}</span>
+              <span>{(change || 0).toLocaleString()}</span>
             </div>
           </div>
         )}

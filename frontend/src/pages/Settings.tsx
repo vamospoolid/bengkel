@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Save, Store, MapPin, Phone, Receipt, Percent, Wrench, Plus, Pencil, Trash2, X, Clock, Loader2, CheckCircle2, Layers, Tag, Sun, Moon, Palette, ScanLine, MessageSquare, QrCode, Printer, Activity, Download } from 'lucide-react';
+import { Save, Store, MapPin, Phone, Receipt, Percent, Wrench, Plus, Pencil, Trash2, X, Clock, Loader2, CheckCircle2, Layers, Tag, Sun, Moon, Palette, ScanLine, MessageSquare, QrCode, Printer, Activity, Download, ChevronDown, AlertCircle, Barcode } from 'lucide-react';
 import api from '../api';
 
 interface Service {
@@ -28,7 +28,7 @@ const ListManager: React.FC<{
   useEffect(() => {
     api.get(`/app-settings/${settingKey}`)
       .then(res => setItems(res.data.items || []))
-      .catch(() => {})
+      .catch(() => { })
       .finally(() => setIsLoading(false));
   }, [settingKey]);
 
@@ -51,7 +51,7 @@ const ListManager: React.FC<{
   };
 
   const handleDelete = (idx: number) => {
-    if (!confirm(`Hapus "${items[idx]}"?`)) return;
+    if (window.confirm && !window.confirm(`Hapus "${items[idx]}"?`)) return;
     saveToServer(items.filter((_, i) => i !== idx));
   };
 
@@ -164,8 +164,8 @@ const ACCENT_COLORS = [
   { id: 'red', label: 'Red', value: '#ef4444' },
 ];
 
-const Settings: React.FC<{ 
-  theme: 'dark' | 'light'; 
+const Settings: React.FC<{
+  theme: 'dark' | 'light';
   setTheme: (t: 'dark' | 'light') => void;
   accentColor: string;
   setAccentColor: (c: string) => void;
@@ -213,7 +213,7 @@ const Settings: React.FC<{
       if (res.data.isReady) {
         setWaStatus(prev => ({ ...prev, status: 'ready' }));
       }
-    } catch (error) {}
+    } catch (error) { }
   };
 
   const handleGenerateQR = async () => {
@@ -232,7 +232,7 @@ const Settings: React.FC<{
   };
 
   const handleDisconnectWA = async () => {
-    if (!confirm('Apakah Anda yakin ingin memutuskan koneksi WhatsApp?')) return;
+    if (window.confirm && !window.confirm('Apakah Anda yakin ingin memutuskan koneksi WhatsApp?')) return;
     try {
       await api.post('/whatsapp/logout');
       setWaStatus({ isReady: false, status: 'loading' });
@@ -323,7 +323,7 @@ const Settings: React.FC<{
   };
 
   const handleDeleteService = async (id: string, name: string) => {
-    if (!confirm(`Hapus jasa "${name}"?`)) return;
+    if (window.confirm && !window.confirm(`Hapus jasa "${name}"?`)) return;
     try {
       await api.delete(`/services/${id}`);
       fetchServices();
@@ -336,7 +336,7 @@ const Settings: React.FC<{
     { key: 'services', label: 'Jasa Servis', icon: <Wrench className="w-4 h-4" /> },
     { key: 'masterdata', label: 'Kategori & Etalase', icon: <Layers className="w-4 h-4" /> },
     { key: 'appearance', label: 'Tampilan', icon: <Palette className="w-4 h-4" /> },
-    { key: 'hardware', label: 'Hardware', icon: <Layers className="w-4 h-4 text-purple-500" /> },
+    { key: 'hardware', label: 'Hardware', icon: <Printer className="w-4 h-4" /> },
     { key: 'reminder', label: 'Reminder WA', icon: <MessageSquare className="w-4 h-4 text-green-500" /> },
     { key: 'database', label: 'Database', icon: <Save className="w-4 h-4 text-red-500" /> },
     { key: 'general', label: 'Profil Bengkel', icon: <Store className="w-4 h-4" /> },
@@ -352,6 +352,10 @@ const Settings: React.FC<{
   const [labelPrinter, setLabelPrinter] = useState('Xprinter XP-D4601B');
   const [labelColumns, setLabelColumns] = useState(3);
   const [isSavingLabelPrinter, setIsSavingLabelPrinter] = useState(false);
+
+  // Reset Database State
+  const [isResetPromptOpen, setIsResetPromptOpen] = useState(false);
+  const [resetPassword, setResetPassword] = useState('');
 
   // Reminder Config State
   const [reminderConfig, setReminderConfig] = useState({
@@ -371,7 +375,7 @@ const Settings: React.FC<{
 
   useEffect(() => {
     if (activeTab === 'reminder') {
-      api.get('/reminder/config').then(res => setReminderConfig(res.data)).catch(() => {});
+      api.get('/reminder/config').then(res => setReminderConfig(res.data)).catch(() => { });
     }
     if (activeTab === 'hardware') {
       fetchHardwareInfo();
@@ -411,11 +415,78 @@ const Settings: React.FC<{
     } finally { setIsSendingNow(false); }
   };
 
+  const handleTestPrinter = async () => {
+    // Jika di Electron, tes printer lokal
+    if ((window as any).electron) {
+      const defaultPrinter = localStorage.getItem('default_printer');
+      if (!defaultPrinter) {
+        alert('Silakan pilih printer lokal terlebih dahulu di bagian atas.');
+        return;
+      }
+
+      try {
+        const testHtml = `
+          <div style="font-family: monospace; text-align: center; width: 80mm; padding: 10mm 0;">
+            <h2 style="margin-bottom: 5mm;">JAKARTA MOTOR</h2>
+            <div style="border-top: 1px dashed #000; margin: 5mm 0;"></div>
+            <p style="font-size: 14px; font-weight: bold;">TEST PRINT BERHASIL</p>
+            <p style="font-size: 12px; margin-top: 2mm;">Printer: ${defaultPrinter}</p>
+            <div style="border-top: 1px dashed #000; margin: 5mm 0;"></div>
+            <p style="font-size: 10px;">${new Date().toLocaleString('id-ID')}</p>
+          </div>
+        `;
+        
+        const success = await (window as any).electron.invoke('print-silent', {
+          silent: true,
+          deviceName: defaultPrinter,
+          margins: { marginType: 'none' }
+        }, `<html><head><style>@page { margin: 0; } body { margin: 0; padding: 0; }</style></head><body>${testHtml}</body></html>`);
+
+        if (success) {
+          setSaveSuccess('Print Test berhasil dikirim ke printer: ' + defaultPrinter);
+          setTimeout(() => setSaveSuccess(''), 3000);
+        } else {
+          setSaveSuccess('Gagal mengirim Print Test. Cek printer Anda.');
+          setTimeout(() => setSaveSuccess(''), 3000);
+        }
+      } catch (err: any) {
+        console.error('Local test failed', err);
+        setSaveSuccess('Error: ' + err.message);
+        setTimeout(() => setSaveSuccess(''), 3000);
+      }
+      return; // JANGAN LANJUT KE BACKEND JIKA DI ELECTRON
+    }
+
+    // Jika di Web / HP, tes via backend (VPS)
+    if (!selectedPrinter) {
+      alert('Silakan pilih printer aktif terlebih dahulu.');
+      return;
+    }
+
+    setIsTestingPrinter(true);
+    try {
+      await api.post('/print/test', { printerName: selectedPrinter });
+      alert('Print Test Berhasil dikirim ke Server!');
+    } catch (err: any) {
+      alert('Print Test Gagal: ' + (err.response?.data?.error || err.message));
+    } finally {
+      setIsTestingPrinter(false);
+    }
+  };
+
   useEffect(() => {
     const fetchPrinters = async () => {
       try {
-        const res = await api.get('/print/list');
-        setPrinters(res.data);
+        // If in Electron, fetch system printers
+        if ((window as any).electron) {
+          const ePrinters = await (window as any).electron.getPrinters();
+          setPrinters(ePrinters);
+        } else {
+          // Fallback to backend printer list (legacy/server side)
+          const res = await api.get('/print/list');
+          setPrinters(res.data);
+        }
+
         const settingRes = await api.get('/app-settings/thermal_printer');
         if (settingRes.data && settingRes.data.items && typeof settingRes.data.items === 'string') {
           setSelectedPrinter(settingRes.data.items);
@@ -428,7 +499,7 @@ const Settings: React.FC<{
         if (labelPrinterRes.data && labelPrinterRes.data.items) {
           setLabelPrinter(Array.isArray(labelPrinterRes.data.items) ? labelPrinterRes.data.items[0] : labelPrinterRes.data.items);
         }
-        
+
         const labelColsRes = await api.get('/app-settings/label_columns');
         if (labelColsRes.data && labelColsRes.data.items) {
           setLabelColumns(Number(Array.isArray(labelColsRes.data.items) ? labelColsRes.data.items[0] : labelColsRes.data.items));
@@ -474,12 +545,7 @@ const Settings: React.FC<{
             </button>
           </div>
 
-          {saveSuccess && (
-            <div className="mx-6 mt-4 p-3 bg-green-500/10 border border-green-500/30 rounded-xl flex items-center gap-2 animate-in slide-in-from-top-2">
-              <CheckCircle2 className="w-4 h-4 text-green-500" />
-              <p className="text-sm font-bold text-green-500">{saveSuccess}</p>
-            </div>
-          )}
+
 
           <div className="overflow-x-auto">
             {isLoadingServices ? (
@@ -554,27 +620,103 @@ const Settings: React.FC<{
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
           <div className="glass-card p-8 rounded-3xl space-y-6">
             <div className="flex items-center gap-3 border-b border-border pb-4">
-              <Receipt className="w-6 h-6 text-purple-500" /><h4 className="font-bold text-lg">Konfigurasi Printer</h4>
+              <Printer className="w-6 h-6 text-purple-500" />
+              <h4 className="font-bold text-lg">Konfigurasi Printer Thermal</h4>
             </div>
-            <div className="space-y-4">
-              <div>
-                <label className="text-xs font-bold text-muted-foreground uppercase tracking-widest mb-3 block">Lebar Kertas Thermal</label>
+
+            <div className="space-y-6">
+              {/* Printer Selection */}
+              <div className="p-5 bg-primary/5 border border-primary/20 rounded-2xl space-y-4">
+                <div className="flex items-center justify-between">
+                  <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">
+                    {(window as any).electron ? 'Pilih Printer Desktop (Lokal)' : 'Pilih Printer Aktif (Server)'}
+                  </label>
+                  {(window as any).electron && (
+                    <button
+                      onClick={async () => {
+                        const ePrinters = await (window as any).electron.getPrinters();
+                        setPrinters(ePrinters);
+                      }}
+                      className="text-[9px] font-black text-primary uppercase hover:underline"
+                    >
+                      Refresh Daftar
+                    </button>
+                  )}
+                </div>
+
+                <div className="relative group">
+                  <Printer className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                  <select
+                    className="w-full bg-card border border-border rounded-xl pl-12 pr-4 py-3 text-sm font-bold focus:ring-2 focus:ring-primary/30 outline-none appearance-none"
+                    value={(window as any).electron ? (localStorage.getItem('default_printer') || '') : selectedPrinter}
+                    onChange={(e) => {
+                      if ((window as any).electron) {
+                        localStorage.setItem('default_printer', e.target.value);
+                        setSelectedPrinter(e.target.value); // Sync state for UI
+                        setSaveSuccess('Printer default disimpan di komputer ini.');
+                        setTimeout(() => setSaveSuccess(null), 3000);
+                      } else {
+                        setSelectedPrinter(e.target.value);
+                      }
+                    }}
+                  >
+                    <option value="">-- Pilih Printer --</option>
+                    {printers.map((p: any) => (
+                      <option key={p.name || p.Name} value={p.name || p.Name}>
+                        {p.name || p.Name} {p.isDefault ? '(Default)' : ''}
+                      </option>
+                    ))}
+                  </select>
+                  <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+                </div>
+              </div>
+
+              {/* Paper Size */}
+              <div className="space-y-3">
+                <label className="text-xs font-bold text-muted-foreground uppercase tracking-widest block">Lebar Kertas</label>
                 <div className="grid grid-cols-2 gap-3">
                   {['58mm', '80mm'].map(size => (
                     <button
                       key={size}
                       onClick={() => setPrinterSize(size)}
-                      className={`py-4 rounded-2xl border-2 transition-all font-black ${printerSize === size ? 'border-primary bg-primary/10 text-primary shadow-lg shadow-primary/10' : 'border-border bg-muted/40 text-muted-foreground hover:border-border-hover'}`}
+                      className={`py-4 rounded-2xl border-2 transition-all font-black ${printerSize === size ? 'border-primary bg-primary/10 text-primary shadow-lg shadow-primary/10' : 'border-border bg-muted/40 text-muted-foreground'}`}
                     >
                       {size}
                     </button>
                   ))}
                 </div>
-                <p className="text-[11px] text-muted-foreground mt-3 italic">* Layout nota akan menyesuaikan secara otomatis saat dicetak.</p>
               </div>
+
+              {/* Action Buttons */}
+              <div className="space-y-3 pt-2">
+                <button
+                  onClick={async () => {
+                    try {
+                      await api.put('/app-settings/thermal_printer', { items: selectedPrinter });
+                    } catch (e) {
+                      console.log('Offline, not saving to server');
+                    }
+                    setSaveSuccess('Konfigurasi Hardware Berhasil Disimpan!');
+                    setTimeout(() => setSaveSuccess(null), 3000);
+                  }}
+                  className="w-full py-4 bg-primary text-white rounded-2xl font-black text-xs uppercase tracking-widest shadow-lg shadow-primary/20 hover:scale-[1.02] active:scale-95 transition-all flex items-center justify-center gap-2"
+                >
+                  <Save className="w-4 h-4" /> SIMPAN KONFIGURASI
+                </button>
+
+                <button
+                  onClick={handleTestPrinter}
+                  className="w-full py-4 bg-blue-500/10 text-blue-500 border border-blue-500/30 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-blue-500 hover:text-white transition-all flex items-center justify-center gap-2"
+                >
+                  <Activity className="w-4 h-4" /> TES KONEKSI PRINTER
+                </button>
+              </div>
+
               <div className="p-4 bg-blue-500/5 border border-blue-500/20 rounded-2xl">
-                <p className="text-xs text-blue-400 leading-relaxed font-medium">
-                  <strong>Tips:</strong> Untuk hasil terbaik pada printer thermal, pastikan Margin di pengaturan print browser diset ke <strong>'None'</strong> atau <strong>'Minimal'</strong>.
+                <p className="text-[11px] text-blue-400 leading-relaxed font-medium">
+                  <strong>Info:</strong> {(window as any).electron
+                    ? 'Aplikasi menggunakan jalur lokal (Direct Print). Pastikan printer terhubung via USB.'
+                    : 'Aplikasi menggunakan jalur server. Printer harus di-share ke jaringan.'}
                 </p>
               </div>
             </div>
@@ -598,21 +740,21 @@ const Settings: React.FC<{
               <div className="space-y-4">
                 <p className="text-xs font-black text-muted-foreground uppercase tracking-widest ml-1">Konfigurasi Lanjutan</p>
                 <div className="grid grid-cols-2 gap-4">
-                   <div className="space-y-2">
-                      <label className="text-[10px] font-bold text-muted-foreground uppercase">Suffix (Akhiran)</label>
-                      <select className="w-full bg-muted border border-border rounded-xl px-3 py-2 text-xs font-black focus:outline-none">
-                        <option value="ENTER">ENTER (Default)</option>
-                        <option value="TAB">TAB</option>
-                        <option value="NONE">NONE</option>
-                      </select>
-                   </div>
-                   <div className="space-y-2">
-                      <label className="text-[10px] font-bold text-muted-foreground uppercase">Kecepatan Scan</label>
-                      <select className="w-full bg-muted border border-border rounded-xl px-3 py-2 text-xs font-black focus:outline-none">
-                        <option value="FAST">FAST</option>
-                        <option value="NORMAL">NORMAL</option>
-                      </select>
-                   </div>
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-bold text-muted-foreground uppercase">Suffix (Akhiran)</label>
+                    <select className="w-full bg-muted border border-border rounded-xl px-3 py-2 text-xs font-black focus:outline-none">
+                      <option value="ENTER">ENTER (Default)</option>
+                      <option value="TAB">TAB</option>
+                      <option value="NONE">NONE</option>
+                    </select>
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-bold text-muted-foreground uppercase">Kecepatan Scan</label>
+                    <select className="w-full bg-muted border border-border rounded-xl px-3 py-2 text-xs font-black focus:outline-none">
+                      <option value="FAST">FAST</option>
+                      <option value="NORMAL">NORMAL</option>
+                    </select>
+                  </div>
                 </div>
               </div>
 
@@ -625,8 +767,8 @@ const Settings: React.FC<{
                     <span className="text-[9px] font-bold text-green-500 uppercase">Ready</span>
                   </div>
                 </div>
-                <input 
-                  type="text" 
+                <input
+                  type="text"
                   placeholder="Scan barcode produk di sini untuk tes..."
                   className="w-full bg-black border border-zinc-800 rounded-xl px-4 py-3 text-sm font-mono focus:border-primary/50 transition-all text-center text-white"
                   onKeyDown={(e) => {
@@ -658,157 +800,83 @@ const Settings: React.FC<{
               </div>
             </div>
           </div>
-          <div className="glass-card p-8 rounded-3xl space-y-6">
-            <div className="flex items-center gap-3 border-b border-border pb-4">
-              <Printer className="w-6 h-6 text-blue-500" /><h4 className="font-bold text-lg">Thermal Printer (80mm)</h4>
-            </div>
-            <div className="space-y-6">
-               <div className="p-5 bg-muted/40 rounded-2xl border border-border space-y-4">
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Pilih Printer Aktif</label>
-                      <button 
-                        onClick={async () => {
-                          setPrinters([]);
-                          const res = await api.get('/print/list');
-                          setPrinters(res.data);
-                        }}
-                        className="text-[9px] font-black text-primary uppercase hover:underline"
-                      >
-                        Refresh Daftar
-                      </button>
-                    </div>
-                    {printers.length > 0 ? (
-                      <select 
-                        className="w-full bg-muted border border-border rounded-xl px-4 py-3 text-sm font-bold focus:ring-2 focus:ring-blue-500/30 outline-none transition-all"
-                        value={selectedPrinter}
-                        onChange={(e) => setSelectedPrinter(e.target.value)}
-                      >
-                        {printers.map((p: any) => (
-                          <option key={p.Name} value={p.Name}>{p.Name}</option>
-                        ))}
-                      </select>
-                    ) : (
-                      <div className="space-y-2">
-                        <input 
-                          type="text"
-                          placeholder="Masukkan nama printer manual..."
-                          className="w-full bg-muted border border-border rounded-xl px-4 py-3 text-sm font-bold focus:ring-2 focus:ring-blue-500/30 outline-none transition-all"
-                          value={selectedPrinter}
-                          onChange={(e) => setSelectedPrinter(e.target.value)}
-                        />
-                        <p className="text-[9px] text-orange-500 font-bold italic">⚠️ Gagal mendeteksi printer otomatis. Masukkan nama printer (misal: "80mm Series Printer") secara manual.</p>
-                      </div>
-                    )}
-                  </div>
 
-                  <button 
-                    onClick={async () => {
-                      await api.put('/app-settings/thermal_printer', { items: selectedPrinter });
-                      setIsTestingPrinter(true);
-                      setTimeout(() => {
-                        setIsTestingPrinter(false);
-                        alert('Konfigurasi Printer Berhasil Disimpan!');
-                      }, 500);
-                    }}
-                    className="w-full py-4 bg-primary text-white rounded-xl text-xs font-black uppercase tracking-widest hover:scale-[1.02] active:scale-95 transition-all shadow-lg shadow-primary/20 flex items-center justify-center gap-2"
-                  >
-                    {isTestingPrinter ? <Loader2 className="w-4 h-4 animate-spin" /> : <><Save className="w-4 h-4" /> SIMPAN KONFIGURASI</>}
-                  </button>
-                  
-                  <button 
-                    onClick={async () => {
-                      try {
-                        await api.post('/print/receipt', { transactionId: 'test', printerName: selectedPrinter });
-                        alert('Print Test berhasil terkirim ke printer!');
-                      } catch (err: any) {
-                        const errorMsg = err.response?.data?.error || err.message;
-                        alert(`Print Test Gagal: ${errorMsg}`);
-                      }
-                    }}
-                    className="w-full py-3 bg-blue-500/10 text-blue-500 border border-blue-500/30 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-blue-500 hover:text-white transition-all flex items-center justify-center gap-2"
-                  >
-                    <Activity className="w-4 h-4" /> Tes Koneksi Printer
-                  </button>
-               </div>
-
-               <div className="p-4 bg-blue-500/5 border border-blue-500/10 rounded-2xl">
-                 <p className="text-[10px] text-blue-400 font-bold leading-relaxed italic">
-                   ℹ️ Printer Anda terdeteksi sebagai "80mm Series Printer". Jika nota tidak keluar, pastikan nama printer di atas sesuai dengan yang ada di Control Panel Windows.
-                 </p>
-               </div>
-            </div>
-          </div>
 
           <div className="glass-card p-8 rounded-3xl space-y-6">
             <div className="flex items-center gap-3 border-b border-border pb-4">
               <ScanLine className="w-6 h-6 text-orange-500" /><h4 className="font-bold text-lg">Label Printer (Barcode)</h4>
             </div>
             <div className="space-y-6">
-               <div className="p-5 bg-muted/40 rounded-2xl border border-border space-y-4">
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Printer Label Aktif</label>
-                    </div>
-                    {printers.length > 0 ? (
-                      <select 
-                        className="w-full bg-muted border border-border rounded-xl px-4 py-3 text-sm font-bold focus:ring-2 focus:ring-orange-500/30 outline-none transition-all"
-                        value={labelPrinter}
-                        onChange={(e) => setLabelPrinter(e.target.value)}
-                      >
-                        {printers.map((p: any) => (
-                          <option key={p.Name} value={p.Name}>{p.Name}</option>
-                        ))}
-                      </select>
-                    ) : (
-                      <input 
-                        type="text"
-                        placeholder="Nama printer label (Xprinter...)"
-                        className="w-full bg-muted border border-border rounded-xl px-4 py-3 text-sm font-bold focus:ring-2 focus:ring-orange-500/30 outline-none transition-all"
-                        value={labelPrinter}
-                        onChange={(e) => setLabelPrinter(e.target.value)}
-                      />
-                    )}
+              <div className="p-5 bg-muted/40 rounded-2xl border border-border space-y-4">
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Printer Label Aktif</label>
                   </div>
-
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Default Kolom Barcode</label>
-                    <select 
+                  {printers.length > 0 ? (
+                    <select
                       className="w-full bg-muted border border-border rounded-xl px-4 py-3 text-sm font-bold focus:ring-2 focus:ring-orange-500/30 outline-none transition-all"
-                      value={labelColumns}
-                      onChange={(e) => setLabelColumns(Number(e.target.value))}
+                      value={labelPrinter}
+                      onChange={(e) => setLabelPrinter(e.target.value)}
                     >
-                      {[1, 2, 3, 4, 5].map(n => (
-                        <option key={n} value={n}>{n} Kolom</option>
+                      {printers.map((p: any) => (
+                        <option key={p.name || p.Name} value={p.name || p.Name}>{p.name || p.Name}</option>
                       ))}
                     </select>
-                  </div>
+                  ) : (
+                    <input
+                      type="text"
+                      placeholder="Nama printer label (Xprinter...)"
+                      className="w-full bg-muted border border-border rounded-xl px-4 py-3 text-sm font-bold focus:ring-2 focus:ring-orange-500/30 outline-none transition-all"
+                      value={labelPrinter}
+                      onChange={(e) => setLabelPrinter(e.target.value)}
+                    />
+                  )}
+                </div>
 
-                  <button 
-                    onClick={async () => {
-                      setIsSavingLabelPrinter(true);
-                      try {
-                        await api.put('/app-settings/label_printer', { items: [labelPrinter] });
-                        await api.put('/app-settings/label_columns', { items: [String(labelColumns)] });
-                        alert('Konfigurasi Printer Label Berhasil Disimpan!');
-                      } catch (err) {
-                        console.error('Save label printer error:', err);
-                        alert('Gagal menyimpan konfigurasi.');
-                      } finally {
-                        setIsSavingLabelPrinter(false);
-                      }
-                    }}
-                    className="w-full py-4 bg-orange-500 text-white rounded-xl text-xs font-black uppercase tracking-widest hover:scale-[1.02] active:scale-95 transition-all shadow-lg shadow-orange-500/20 flex items-center justify-center gap-2"
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Default Kolom Barcode</label>
+                  <select
+                    className="w-full bg-muted border border-border rounded-xl px-4 py-3 text-sm font-bold focus:ring-2 focus:ring-orange-500/30 outline-none transition-all"
+                    value={labelColumns}
+                    onChange={(e) => setLabelColumns(Number(e.target.value))}
                   >
-                    {isSavingLabelPrinter ? <Loader2 className="w-4 h-4 animate-spin" /> : <><Save className="w-4 h-4" /> SIMPAN LABEL SETUP</>}
-                  </button>
-               </div>
+                    {[1, 2, 3, 4, 5].map(n => (
+                      <option key={n} value={n}>{n} Kolom</option>
+                    ))}
+                  </select>
+                </div>
 
-               <div className="p-4 bg-orange-500/5 border border-orange-500/10 rounded-2xl">
-                 <p className="text-[10px] text-orange-400 font-bold leading-relaxed italic">
-                   ℹ️ Printer Label digunakan untuk mencetak barcode produk. Xprinter XP-D4601B biasanya menggunakan ukuran label 3-column.
-                 </p>
-               </div>
+                <button
+                  onClick={async () => {
+                    setIsSavingLabelPrinter(true);
+                    try {
+                      await api.put('/app-settings/label_printer', { items: [labelPrinter] });
+                      await api.put('/app-settings/label_columns', { items: [String(labelColumns)] });
+                      
+                      localStorage.setItem('label_printer', labelPrinter);
+                      localStorage.setItem('label_columns', String(labelColumns));
+                      
+                      setSaveSuccess('Konfigurasi Printer Label Berhasil Disimpan!');
+                      setTimeout(() => setSaveSuccess(''), 3000);
+                    } catch (err) {
+                      console.error('Save label printer error:', err);
+                      setSaveSuccess('Gagal menyimpan konfigurasi.');
+                      setTimeout(() => setSaveSuccess(''), 3000);
+                    } finally {
+                      setIsSavingLabelPrinter(false);
+                    }
+                  }}
+                  className="w-full py-4 bg-orange-500 text-white rounded-xl text-xs font-black uppercase tracking-widest hover:scale-[1.02] active:scale-95 transition-all shadow-lg shadow-orange-500/20 flex items-center justify-center gap-2"
+                >
+                  {isSavingLabelPrinter ? <Loader2 className="w-4 h-4 animate-spin" /> : <><Save className="w-4 h-4" /> SIMPAN LABEL SETUP</>}
+                </button>
+              </div>
+
+              <div className="p-4 bg-orange-500/5 border border-orange-500/10 rounded-2xl">
+                <p className="text-[10px] text-orange-400 font-bold leading-relaxed italic">
+                  ℹ️ Printer Label digunakan untuk mencetak barcode produk. Xprinter XP-D4601B biasanya menggunakan ukuran label 3-column.
+                </p>
+              </div>
             </div>
           </div>
 
@@ -838,7 +906,7 @@ const Settings: React.FC<{
                     <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-2">Storage (Disks)</p>
                     {hardwareInfo.disk?.map((d: any, i: number) => (
                       <div key={i} className="mb-2 last:mb-0">
-                        <p className="text-sm font-bold">{d.name} ({Math.round(d.size / (1024**3))} GB)</p>
+                        <p className="text-sm font-bold">{d.name} ({Math.round(d.size / (1024 ** 3))} GB)</p>
                         <p className="text-[10px] text-muted-foreground font-mono">SN: {d.serialNum}</p>
                       </div>
                     ))}
@@ -850,7 +918,7 @@ const Settings: React.FC<{
                   <button onClick={fetchHardwareInfo} className="mt-2 text-[10px] text-primary underline font-black">Coba Lagi</button>
                 </div>
               )}
-              
+
               <div className="p-4 bg-blue-500/5 border border-blue-500/10 rounded-2xl">
                 <p className="text-[10px] text-blue-400 font-bold leading-relaxed italic">
                   ℹ️ Hardware ID digunakan untuk lisensi aplikasi dan tracking perangkat POS yang terdaftar.
@@ -864,79 +932,79 @@ const Settings: React.FC<{
               <MessageSquare className="w-6 h-6 text-green-500" /><h4 className="font-bold text-lg">WhatsApp API Gateway</h4>
             </div>
             <div className="space-y-6">
-               <div className="flex flex-col items-center justify-center p-6 bg-zinc-900 border border-zinc-800 rounded-[2.5rem] space-y-4">
-                  <div className="relative group">
-                    <div className="absolute inset-0 bg-green-500/20 blur-2xl rounded-full opacity-50 animate-pulse" />
-                    <div className="relative w-48 h-48 bg-white p-3 rounded-2xl shadow-2xl flex items-center justify-center overflow-hidden">
-                       {waStatus.isReady ? (
-                         <div className="flex flex-col items-center gap-2 text-green-600">
-                           <CheckCircle2 className="w-16 h-16" />
-                           <span className="font-black text-xs uppercase tracking-widest">Terhubung</span>
-                         </div>
-                       ) : waStatus.status === 'qr' && waQR ? (
-                         <img src={waQR} alt="WhatsApp QR" className="w-full h-full object-contain" />
-                       ) : (
-                         <div className="flex flex-col items-center gap-2 text-zinc-300">
-                           <QrCode className="w-12 h-12 opacity-20" />
-                           {waStatus.status === 'loading' && <Loader2 className="w-6 h-6 animate-spin text-primary" />}
-                         </div>
-                       )}
-                       
-                       {!waStatus.isReady && (
-                         <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center rounded-2xl backdrop-blur-sm">
-                            <button 
-                              onClick={handleGenerateQR}
-                              className="bg-green-500 text-white px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-green-500/20 hover:scale-105 active:scale-95 transition-all"
-                            >
-                              {waStatus.status === 'loading' ? 'Loading...' : 'Generate Baru'}
-                            </button>
-                         </div>
-                       )}
-                    </div>
-                  </div>
-                  <div className="text-center">
-                    <p className={`text-sm font-black ${waStatus.isReady ? 'text-green-500' : 'text-white'}`}>
-                      {waStatus.isReady ? 'WHATSAPP AKTIF' : 'Hubungkan WhatsApp'}
-                    </p>
-                    <p className="text-[10px] text-muted-foreground mt-1 px-4 leading-relaxed italic">
-                      {waStatus.isReady 
-                        ? 'Sistem siap mengirimkan nota otomatis ke pelanggan.' 
-                        : 'Scan QR di atas dengan WhatsApp Anda (Linked Devices) untuk mengaktifkan fitur pengiriman nota otomatis.'}
-                    </p>
-                    {waStatus.isReady && (
-                      <button 
-                        onClick={handleDisconnectWA}
-                        className="mt-4 px-4 py-2 bg-red-500/10 text-red-500 border border-red-500/20 rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-red-500 hover:text-white transition-all"
-                      >
-                        Putuskan Koneksi
-                      </button>
+              <div className="flex flex-col items-center justify-center p-6 bg-zinc-900 border border-zinc-800 rounded-[2.5rem] space-y-4">
+                <div className="relative group">
+                  <div className="absolute inset-0 bg-green-500/20 blur-2xl rounded-full opacity-50 animate-pulse" />
+                  <div className="relative w-48 h-48 bg-white p-3 rounded-2xl shadow-2xl flex items-center justify-center overflow-hidden">
+                    {waStatus.isReady ? (
+                      <div className="flex flex-col items-center gap-2 text-green-600">
+                        <CheckCircle2 className="w-16 h-16" />
+                        <span className="font-black text-xs uppercase tracking-widest">Terhubung</span>
+                      </div>
+                    ) : waStatus.status === 'qr' && waQR ? (
+                      <img src={waQR} alt="WhatsApp QR" className="w-full h-full object-contain" />
+                    ) : (
+                      <div className="flex flex-col items-center gap-2 text-zinc-300">
+                        <QrCode className="w-12 h-12 opacity-20" />
+                        {waStatus.status === 'loading' && <Loader2 className="w-6 h-6 animate-spin text-primary" />}
+                      </div>
+                    )}
+
+                    {!waStatus.isReady && (
+                      <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center rounded-2xl backdrop-blur-sm">
+                        <button
+                          onClick={handleGenerateQR}
+                          className="bg-green-500 text-white px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-green-500/20 hover:scale-105 active:scale-95 transition-all"
+                        >
+                          {waStatus.status === 'loading' ? 'Loading...' : 'Generate Baru'}
+                        </button>
+                      </div>
                     )}
                   </div>
-               </div>
+                </div>
+                <div className="text-center">
+                  <p className={`text-sm font-black ${waStatus.isReady ? 'text-green-500' : 'text-white'}`}>
+                    {waStatus.isReady ? 'WHATSAPP AKTIF' : 'Hubungkan WhatsApp'}
+                  </p>
+                  <p className="text-[10px] text-muted-foreground mt-1 px-4 leading-relaxed italic">
+                    {waStatus.isReady
+                      ? 'Sistem siap mengirimkan nota otomatis ke pelanggan.'
+                      : 'Scan QR di atas dengan WhatsApp Anda (Linked Devices) untuk mengaktifkan fitur pengiriman nota otomatis.'}
+                  </p>
+                  {waStatus.isReady && (
+                    <button
+                      onClick={handleDisconnectWA}
+                      className="mt-4 px-4 py-2 bg-red-500/10 text-red-500 border border-red-500/20 rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-red-500 hover:text-white transition-all"
+                    >
+                      Putuskan Koneksi
+                    </button>
+                  )}
+                </div>
+              </div>
 
-               <div className="space-y-3">
-                 <div className="flex items-center justify-between p-4 bg-muted/40 rounded-2xl border border-border">
-                   <div>
-                     <p className="font-bold text-sm">Notifikasi Nota Otomatis</p>
-                     <p className="text-[11px] text-muted-foreground">Kirim WA setelah transaksi selesai</p>
-                   </div>
-                   <label className="relative inline-flex items-center cursor-pointer">
-                     <input type="checkbox" checked={true} className="sr-only peer" />
-                     <div className="w-11 h-6 bg-zinc-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-green-500"></div>
-                   </label>
-                 </div>
-                 
-                 <div className="flex items-center justify-between p-4 bg-muted/40 rounded-2xl border border-border">
-                   <div>
-                     <p className="font-bold text-sm">Pengingat Servis Rutin</p>
-                     <p className="text-[11px] text-muted-foreground">Ingatkan pelanggan setiap 3 bulan</p>
-                   </div>
-                   <label className="relative inline-flex items-center cursor-pointer">
-                     <input type="checkbox" checked={true} className="sr-only peer" />
-                     <div className="w-11 h-6 bg-zinc-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-green-500"></div>
-                   </label>
-                 </div>
-               </div>
+              <div className="space-y-3">
+                <div className="flex items-center justify-between p-4 bg-muted/40 rounded-2xl border border-border">
+                  <div>
+                    <p className="font-bold text-sm">Notifikasi Nota Otomatis</p>
+                    <p className="text-[11px] text-muted-foreground">Kirim WA setelah transaksi selesai</p>
+                  </div>
+                  <label className="relative inline-flex items-center cursor-pointer">
+                    <input type="checkbox" checked={true} className="sr-only peer" />
+                    <div className="w-11 h-6 bg-zinc-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-green-500"></div>
+                  </label>
+                </div>
+
+                <div className="flex items-center justify-between p-4 bg-muted/40 rounded-2xl border border-border">
+                  <div>
+                    <p className="font-bold text-sm">Pengingat Servis Rutin</p>
+                    <p className="text-[11px] text-muted-foreground">Ingatkan pelanggan setiap 3 bulan</p>
+                  </div>
+                  <label className="relative inline-flex items-center cursor-pointer">
+                    <input type="checkbox" checked={true} className="sr-only peer" />
+                    <div className="w-11 h-6 bg-zinc-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-green-500"></div>
+                  </label>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -959,7 +1027,7 @@ const Settings: React.FC<{
                   </div>
                   <label className="relative inline-flex items-center cursor-pointer">
                     <input type="checkbox" checked={reminderConfig.enabled}
-                      onChange={e => setReminderConfig(p => ({...p, enabled: e.target.checked}))}
+                      onChange={e => setReminderConfig(p => ({ ...p, enabled: e.target.checked }))}
                       className="sr-only peer" />
                     <div className="w-12 h-7 bg-zinc-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-6 after:w-6 after:transition-all peer-checked:bg-green-500"></div>
                   </label>
@@ -972,8 +1040,8 @@ const Settings: React.FC<{
                 <div>
                   <label className="text-xs font-bold text-muted-foreground block mb-2">Kirim Setelah Berapa Bulan?</label>
                   <div className="flex gap-2">
-                    {[1,2,3,4,5,6].map(m => (
-                      <button key={m} onClick={() => setReminderConfig(p => ({...p, monthsAfterService: m}))}
+                    {[1, 2, 3, 4, 5, 6].map(m => (
+                      <button key={m} onClick={() => setReminderConfig(p => ({ ...p, monthsAfterService: m }))}
                         className={`flex-1 py-3 rounded-xl font-black text-sm transition-all ${reminderConfig.monthsAfterService === m ? 'bg-green-500 text-white shadow-lg' : 'bg-muted text-muted-foreground hover:bg-muted/80'}`}>
                         {m}
                       </button>
@@ -985,21 +1053,21 @@ const Settings: React.FC<{
                   <label className="text-xs font-bold text-muted-foreground block mb-2">Jam Pengiriman</label>
                   <div className="flex items-center gap-3">
                     <select value={reminderConfig.sendHour}
-                      onChange={e => setReminderConfig(p => ({...p, sendHour: Number(e.target.value)}))}
+                      onChange={e => setReminderConfig(p => ({ ...p, sendHour: Number(e.target.value) }))}
                       className="flex-1 bg-muted border border-border rounded-xl px-4 py-3 font-bold text-sm focus:outline-none focus:ring-2 focus:ring-green-500/30">
-                      {Array.from({length: 24}, (_, i) => (
-                        <option key={i} value={i}>{String(i).padStart(2,'0')}:00</option>
+                      {Array.from({ length: 24 }, (_, i) => (
+                        <option key={i} value={i}>{String(i).padStart(2, '0')}:00</option>
                       ))}
                     </select>
                     <span className="font-black text-muted-foreground">:</span>
                     <select value={reminderConfig.sendMinute}
-                      onChange={e => setReminderConfig(p => ({...p, sendMinute: Number(e.target.value)}))}
+                      onChange={e => setReminderConfig(p => ({ ...p, sendMinute: Number(e.target.value) }))}
                       className="flex-1 bg-muted border border-border rounded-xl px-4 py-3 font-bold text-sm focus:outline-none focus:ring-2 focus:ring-green-500/30">
                       <option value={0}>00</option>
                       <option value={30}>30</option>
                     </select>
                   </div>
-                  <p className="text-xs text-muted-foreground mt-2 italic">Reminder dikirim setiap hari pukul <strong>{String(reminderConfig.sendHour).padStart(2,'0')}:{String(reminderConfig.sendMinute).padStart(2,'0')} WIB</strong></p>
+                  <p className="text-xs text-muted-foreground mt-2 italic">Reminder dikirim setiap hari pukul <strong>{String(reminderConfig.sendHour).padStart(2, '0')}:{String(reminderConfig.sendMinute).padStart(2, '0')} WIB</strong></p>
                 </div>
               </div>
 
@@ -1011,7 +1079,7 @@ const Settings: React.FC<{
                   {reminderConfig.serviceKeywords.map((kw, i) => (
                     <span key={i} className="flex items-center gap-1 px-3 py-1.5 bg-green-500/10 text-green-400 border border-green-500/20 rounded-full text-xs font-bold">
                       {kw}
-                      <button onClick={() => setReminderConfig(p => ({...p, serviceKeywords: p.serviceKeywords.filter((_,idx) => idx !== i)}))}
+                      <button onClick={() => setReminderConfig(p => ({ ...p, serviceKeywords: p.serviceKeywords.filter((_, idx) => idx !== i) }))}
                         className="hover:text-red-400 transition-colors ml-1">×</button>
                     </span>
                   ))}
@@ -1019,15 +1087,19 @@ const Settings: React.FC<{
                 <div className="flex gap-2">
                   <input type="text" placeholder="Tambah kata kunci..." value={keywordInput}
                     onChange={e => setKeywordInput(e.target.value)}
-                    onKeyDown={e => { if (e.key === 'Enter' && keywordInput.trim()) {
-                      setReminderConfig(p => ({...p, serviceKeywords: [...p.serviceKeywords, keywordInput.trim()]}));
-                      setKeywordInput('');
-                    }}}
+                    onKeyDown={e => {
+                      if (e.key === 'Enter' && keywordInput.trim()) {
+                        setReminderConfig(p => ({ ...p, serviceKeywords: [...p.serviceKeywords, keywordInput.trim()] }));
+                        setKeywordInput('');
+                      }
+                    }}
                     className="flex-1 bg-muted border border-border rounded-xl px-4 py-2.5 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-green-500/30" />
-                  <button onClick={() => { if (keywordInput.trim()) {
-                    setReminderConfig(p => ({...p, serviceKeywords: [...p.serviceKeywords, keywordInput.trim()]}));
-                    setKeywordInput('');
-                  }}} className="px-4 py-2.5 bg-green-500 text-white rounded-xl font-bold hover:bg-green-600 transition-all">
+                  <button onClick={() => {
+                    if (keywordInput.trim()) {
+                      setReminderConfig(p => ({ ...p, serviceKeywords: [...p.serviceKeywords, keywordInput.trim()] }));
+                      setKeywordInput('');
+                    }
+                  }} className="px-4 py-2.5 bg-green-500 text-white rounded-xl font-bold hover:bg-green-600 transition-all">
                     <Plus className="w-4 h-4" />
                   </button>
                 </div>
@@ -1041,8 +1113,8 @@ const Settings: React.FC<{
                 <div className="p-3 bg-green-500/5 border border-green-500/20 rounded-xl">
                   <p className="text-xs font-bold text-green-400 mb-2">Variabel yang tersedia:</p>
                   <div className="flex flex-wrap gap-1.5">
-                    {['{customerName}','{months}','{lastServiceDate}','{vehicleInfo}','{serviceName}','{workshopName}','{workshopPhone}','{workshopAddress}'].map(v => (
-                      <button key={v} onClick={() => setReminderConfig(p => ({...p, messageTemplate: p.messageTemplate + v}))}
+                    {['{customerName}', '{months}', '{lastServiceDate}', '{vehicleInfo}', '{serviceName}', '{workshopName}', '{workshopPhone}', '{workshopAddress}'].map(v => (
+                      <button key={v} onClick={() => setReminderConfig(p => ({ ...p, messageTemplate: p.messageTemplate + v }))}
                         className="px-2 py-1 bg-green-500/10 text-green-400 rounded-lg text-[10px] font-mono hover:bg-green-500/20 transition-all">
                         {v}
                       </button>
@@ -1052,7 +1124,7 @@ const Settings: React.FC<{
                 <textarea
                   rows={14}
                   value={reminderConfig.messageTemplate}
-                  onChange={e => setReminderConfig(p => ({...p, messageTemplate: e.target.value}))}
+                  onChange={e => setReminderConfig(p => ({ ...p, messageTemplate: e.target.value }))}
                   className="w-full bg-zinc-900 border border-zinc-700 rounded-xl px-4 py-3 text-sm font-mono text-green-300 focus:outline-none focus:ring-2 focus:ring-green-500/30 resize-none leading-relaxed"
                   placeholder="Tulis template pesan di sini..."
                 />
@@ -1119,11 +1191,10 @@ const Settings: React.FC<{
               <div className="md:w-1/2 grid grid-cols-2 gap-4 w-full">
                 <button
                   onClick={() => setTheme('light')}
-                  className={`relative flex flex-col items-center gap-4 p-8 rounded-[2.5rem] border-2 transition-all group ${
-                    theme === 'light' 
-                      ? 'border-primary bg-primary/5 shadow-2xl shadow-primary/10' 
+                  className={`relative flex flex-col items-center gap-4 p-8 rounded-[2.5rem] border-2 transition-all group ${theme === 'light'
+                      ? 'border-primary bg-primary/5 shadow-2xl shadow-primary/10'
                       : 'border-border bg-muted/20 grayscale opacity-40 hover:opacity-100 hover:grayscale-0'
-                  }`}
+                    }`}
                 >
                   <div className={`w-16 h-16 rounded-full flex items-center justify-center transition-all ${theme === 'light' ? 'bg-orange-500 text-white shadow-xl shadow-orange-500/30' : 'bg-muted text-muted-foreground'}`}>
                     <Sun className="w-8 h-8" />
@@ -1137,11 +1208,10 @@ const Settings: React.FC<{
 
                 <button
                   onClick={() => setTheme('dark')}
-                  className={`relative flex flex-col items-center gap-4 p-8 rounded-[2.5rem] border-2 transition-all group ${
-                    theme === 'dark' 
-                      ? 'border-primary bg-primary/5 shadow-2xl shadow-primary/10' 
+                  className={`relative flex flex-col items-center gap-4 p-8 rounded-[2.5rem] border-2 transition-all group ${theme === 'dark'
+                      ? 'border-primary bg-primary/5 shadow-2xl shadow-primary/10'
                       : 'border-border bg-muted/20 grayscale opacity-40 hover:opacity-100 hover:grayscale-0'
-                  }`}
+                    }`}
                 >
                   <div className={`w-16 h-16 rounded-full flex items-center justify-center transition-all ${theme === 'dark' ? 'bg-zinc-900 text-white shadow-xl shadow-zinc-900/50' : 'bg-muted text-muted-foreground'}`}>
                     <Moon className="w-8 h-8" />
@@ -1159,7 +1229,7 @@ const Settings: React.FC<{
             <div className="flex flex-col md:flex-row items-center justify-between gap-10">
               <div className="md:w-1/2 space-y-4">
                 <div className="p-4 bg-primary/10 rounded-2xl w-fit">
-                   <Sun className="w-8 h-8 text-primary" />
+                  <Sun className="w-8 h-8 text-primary" />
                 </div>
                 <h4 className="text-3xl font-black uppercase tracking-tight">Warna Aksen</h4>
                 <p className="text-sm text-muted-foreground leading-relaxed italic">Pilih warna kontras untuk tombol, ikon, dan elemen penting lainnya. Semua pilihan dirancang tetap elegan dengan dasar Hitam.</p>
@@ -1170,14 +1240,13 @@ const Settings: React.FC<{
                   <button
                     key={color.id}
                     onClick={() => setAccentColor(color.value)}
-                    className={`relative flex flex-col items-center gap-3 p-6 rounded-[2rem] border-2 transition-all group ${
-                      accentColor === color.value 
-                        ? 'border-primary bg-primary/5' 
+                    className={`relative flex flex-col items-center gap-3 p-6 rounded-[2rem] border-2 transition-all group ${accentColor === color.value
+                        ? 'border-primary bg-primary/5'
                         : 'border-border bg-muted/20 hover:border-border-hover'
-                    }`}
+                      }`}
                   >
-                    <div 
-                      className="w-12 h-12 rounded-2xl shadow-lg transition-transform group-hover:scale-110" 
+                    <div
+                      className="w-12 h-12 rounded-2xl shadow-lg transition-transform group-hover:scale-110"
                       style={{ backgroundColor: color.value }}
                     />
                     <p className="font-black text-[10px] uppercase tracking-widest">{color.label}</p>
@@ -1224,7 +1293,7 @@ const Settings: React.FC<{
             </div>
             <div className="space-y-4">
               <p className="text-sm text-muted-foreground leading-relaxed">Amankan data bengkel (transaksi, inventori, pelanggan) dengan melakukan backup secara berkala.</p>
-              
+
               <button
                 onClick={async () => {
                   try {
@@ -1246,16 +1315,16 @@ const Settings: React.FC<{
               </button>
 
               <div className="relative">
-                <input 
-                  type="file" 
-                  id="import-db" 
-                  className="hidden" 
+                <input
+                  type="file"
+                  id="import-db"
+                  className="hidden"
                   accept=".json"
                   onChange={async (e) => {
                     const file = e.target.files?.[0];
                     if (!file) return;
-                    
-                    const confirmImport = confirm('PERINGATAN: Mengimpor database akan menghapus SELURUH data saat ini dan menggantinya dengan isi file backup. Lanjutkan?');
+
+                    const confirmImport = window.confirm('PERINGATAN: Mengimpor database akan menghapus SELURUH data saat ini dan menggantinya dengan isi file backup. Lanjutkan?');
                     if (!confirmImport) return;
 
                     const reader = new FileReader();
@@ -1288,7 +1357,7 @@ const Settings: React.FC<{
                 <label className="relative inline-flex items-center cursor-pointer">
                   <input type="checkbox" defaultChecked className="sr-only peer" onChange={async (e) => {
                     await api.put('/app-settings/auto_backup', { items: [e.target.checked.toString()] });
-                  }}/>
+                  }} />
                   <div className="w-11 h-6 bg-zinc-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-500"></div>
                 </label>
               </div>
@@ -1306,26 +1375,9 @@ const Settings: React.FC<{
                 </p>
               </div>
               <button
-                onClick={async () => {
-                  if (!window.confirm('SMART RESET: Tindakan ini akan membersihkan seluruh riwayat transaksi dan operasional (Pembelian, Stok, Cashflow, Absensi).\n\nData Master (User, Layanan, Pelanggan, Produk & Rak) akan TETAP ADA.\n\nApakah Anda yakin?')) return;
-                  
-                  const confirm2 = window.confirm('KONFIRMASI TERAKHIR: Seluruh riwayat transaksi akan dihapus PERMANEN. Tekan OK untuk memproses reset.');
-                  if (!confirm2) return;
-
-                  try {
-                    setIsSaving(true);
-                    console.log('Initiating database reset...');
-                    const res = await api.post('/database/reset');
-                    console.log('Reset response:', res.data);
-                    alert(res.data.message || 'Database berhasil di-reset.');
-                    window.location.href = '/';
-                  } catch (err: any) {
-                    console.error('Reset error:', err);
-                    const errorMsg = err.response?.data?.error || err.message;
-                    alert('Gagal mereset database: ' + errorMsg);
-                  } finally {
-                    setIsSaving(false);
-                  }
+                onClick={() => {
+                  setResetPassword('');
+                  setIsResetPromptOpen(true);
                 }}
                 className="w-full py-4 bg-transparent border-2 border-red-500 text-red-500 rounded-xl text-xs font-black uppercase tracking-widest hover:bg-red-500 hover:text-white transition-all flex items-center justify-center gap-2"
               >
@@ -1340,8 +1392,8 @@ const Settings: React.FC<{
       {activeTab === 'general' && (
         <>
           <div className="flex justify-end">
-            <button 
-              onClick={handleSaveGeneral} 
+            <button
+              onClick={handleSaveGeneral}
               disabled={isSaving || isLoadingGeneral}
               className="flex items-center gap-2 px-6 py-3 bg-primary text-white rounded-xl shadow-lg shadow-primary/20 hover:scale-105 active:scale-95 transition-all font-bold disabled:opacity-50"
             >
@@ -1365,22 +1417,22 @@ const Settings: React.FC<{
               <div className="space-y-4">
                 <div>
                   <label className="text-xs font-bold text-muted-foreground uppercase tracking-widest mb-2 block">Nama Bengkel</label>
-                  <input 
-                    type="text" 
-                    value={workshopSettings.name} 
+                  <input
+                    type="text"
+                    value={workshopSettings.name}
                     onChange={e => setWorkshopSettings({ ...workshopSettings, name: e.target.value })}
-                    className="w-full bg-muted border border-border rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all font-medium" 
+                    className="w-full bg-muted border border-border rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all font-medium"
                   />
                 </div>
                 <div>
                   <label className="text-xs font-bold text-muted-foreground uppercase tracking-widest mb-2 block">No. Telepon</label>
                   <div className="relative">
                     <Phone className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                    <input 
-                      type="text" 
-                      value={workshopSettings.phone} 
+                    <input
+                      type="text"
+                      value={workshopSettings.phone}
                       onChange={e => setWorkshopSettings({ ...workshopSettings, phone: e.target.value })}
-                      className="w-full bg-muted border border-border rounded-xl pl-12 pr-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all font-medium" 
+                      className="w-full bg-muted border border-border rounded-xl pl-12 pr-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all font-medium"
                     />
                   </div>
                 </div>
@@ -1388,11 +1440,11 @@ const Settings: React.FC<{
                   <label className="text-xs font-bold text-muted-foreground uppercase tracking-widest mb-2 block">Alamat Lengkap</label>
                   <div className="relative">
                     <MapPin className="absolute left-4 top-4 w-4 h-4 text-muted-foreground" />
-                    <textarea 
-                      rows={3} 
-                      value={workshopSettings.address} 
+                    <textarea
+                      rows={3}
+                      value={workshopSettings.address}
                       onChange={e => setWorkshopSettings({ ...workshopSettings, address: e.target.value })}
-                      className="w-full bg-muted border border-border rounded-xl pl-12 pr-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all font-medium resize-none" 
+                      className="w-full bg-muted border border-border rounded-xl pl-12 pr-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all font-medium resize-none"
                     />
                   </div>
                 </div>
@@ -1407,39 +1459,39 @@ const Settings: React.FC<{
                   <label className="text-xs font-bold text-muted-foreground uppercase tracking-widest mb-2 block">Tarif Pajak (PPN %)</label>
                   <div className="relative">
                     <Percent className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                    <input 
-                      type="number" 
-                      value={workshopSettings.taxRate} 
+                    <input
+                      type="number"
+                      value={workshopSettings.taxRate}
                       onChange={e => setWorkshopSettings({ ...workshopSettings, taxRate: Number(e.target.value) })}
-                      className="w-full bg-muted border border-border rounded-xl pl-12 pr-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all font-medium" 
+                      className="w-full bg-muted border border-border rounded-xl pl-12 pr-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all font-medium"
                     />
                   </div>
                 </div>
                 <div>
                   <label className="text-xs font-bold text-muted-foreground uppercase tracking-widest mb-2 block">Pesan Footer Struk</label>
-                  <textarea 
-                    rows={3} 
-                    value={workshopSettings.footerMessage} 
+                  <textarea
+                    rows={3}
+                    value={workshopSettings.footerMessage}
                     onChange={e => setWorkshopSettings({ ...workshopSettings, footerMessage: e.target.value })}
-                    className="w-full bg-muted border border-border rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all font-medium resize-none" 
+                    className="w-full bg-muted border border-border rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all font-medium resize-none"
                   />
                 </div>
                 <div className="pt-4 border-t border-border">
                   <label className="text-xs font-bold text-muted-foreground uppercase tracking-widest mb-2 block">Informasi Rekening Bank (Transfer)</label>
-                  <input 
-                    type="text" 
+                  <input
+                    type="text"
                     placeholder="Contoh: BCA 123456789 a/n Jakarta Motor"
-                    value={workshopSettings.bankAccount || ''} 
+                    value={workshopSettings.bankAccount || ''}
                     onChange={e => setWorkshopSettings({ ...workshopSettings, bankAccount: e.target.value })}
-                    className="w-full bg-muted border border-border rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all font-medium mb-4" 
+                    className="w-full bg-muted border border-border rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all font-medium mb-4"
                   />
-                  
+
                   <label className="text-xs font-bold text-muted-foreground uppercase tracking-widest mb-2 block">Gambar QRIS (Opsional)</label>
                   <div className="flex items-center gap-4">
                     {workshopSettings.qrisImage ? (
                       <div className="relative group">
                         <img src={workshopSettings.qrisImage} alt="QRIS" className="w-24 h-24 object-contain bg-white rounded-xl border border-border p-2" />
-                        <button 
+                        <button
                           onClick={() => setWorkshopSettings({ ...workshopSettings, qrisImage: '' })}
                           className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-all shadow-md"
                         >
@@ -1454,10 +1506,10 @@ const Settings: React.FC<{
                     <div className="flex-1">
                       <label className="cursor-pointer inline-flex items-center gap-2 px-4 py-2 bg-muted hover:bg-muted/70 text-foreground text-xs font-bold uppercase tracking-widest rounded-xl transition-all border border-border">
                         <Plus className="w-4 h-4" /> Pilih Gambar QRIS
-                        <input 
-                          type="file" 
-                          accept="image/*" 
-                          className="hidden" 
+                        <input
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
                           onChange={(e) => {
                             const file = e.target.files?.[0];
                             if (!file) return;
@@ -1466,7 +1518,7 @@ const Settings: React.FC<{
                               setWorkshopSettings({ ...workshopSettings, qrisImage: event.target?.result as string });
                             };
                             reader.readAsDataURL(file);
-                          }} 
+                          }}
                         />
                       </label>
                       <p className="text-[10px] text-muted-foreground mt-2 italic">Format: JPG/PNG. Ukuran maks 500KB agar cepat dimuat di kasir.</p>
@@ -1475,11 +1527,11 @@ const Settings: React.FC<{
                 </div>
                 <div className="pt-4 border-t border-border">
                   <label className="flex items-center gap-3 cursor-pointer">
-                    <input 
-                      type="checkbox" 
-                      checked={workshopSettings.enableWhatsApp} 
+                    <input
+                      type="checkbox"
+                      checked={workshopSettings.enableWhatsApp}
                       onChange={e => setWorkshopSettings({ ...workshopSettings, enableWhatsApp: e.target.checked })}
-                      className="w-5 h-5 accent-primary" 
+                      className="w-5 h-5 accent-primary"
                     />
                     <span className="font-medium">Aktifkan Struk Digital WhatsApp</span>
                   </label>
@@ -1488,6 +1540,75 @@ const Settings: React.FC<{
             </div>
           </div>
         </>
+      )}
+
+      {/* ===== TAB: HARDWARE (ELECTRON ONLY) ===== */}
+      {activeTab === 'hardware' && (window as any).electron && (
+        <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+          <div className="glass-card p-10 rounded-[2.5rem] border border-border/50 shadow-sm space-y-8">
+            <div className="flex items-center gap-4 border-b border-border/30 pb-6">
+              <div className="p-3 bg-primary/10 rounded-2xl text-primary">
+                <Printer className="w-6 h-6" />
+              </div>
+              <div>
+                <h4 className="font-black text-xl uppercase tracking-tight">Konfigurasi Printer Desktop</h4>
+                <p className="text-xs text-muted-foreground font-medium italic">Kelola printer thermal untuk cetak struk tanpa dialog.</p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
+              <div className="space-y-6">
+                <div>
+                  <label className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em] mb-3 block">Printer Struk Utama</label>
+                  <div className="relative group">
+                    <Printer className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
+                    <select
+                      value={localStorage.getItem('default_printer') || ''}
+                      onChange={(e) => {
+                        localStorage.setItem('default_printer', e.target.value);
+                        setSaveSuccess('Printer default berhasil diperbarui.');
+                        setTimeout(() => setSaveSuccess(''), 3000);
+                      }}
+                      className="w-full bg-muted border border-border rounded-xl pl-12 pr-4 py-3.5 focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all font-bold appearance-none"
+                    >
+                      <option value="">-- Gunakan Dialog Print Windows --</option>
+                      {/* We will fetch these from electron bridge */}
+                      {((window as any).printers || []).map((p: any) => (
+                        <option key={p.name} value={p.name}>{p.name} {p.isDefault ? '(Default)' : ''}</option>
+                      ))}
+                    </select>
+                    <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+                  </div>
+                </div>
+
+                <div className="p-5 bg-orange-500/5 border border-orange-500/20 rounded-2xl space-y-3">
+                  <div className="flex items-center gap-2 text-orange-500">
+                    <AlertCircle className="w-4 h-4" />
+                    <span className="text-[10px] font-black uppercase tracking-widest">Informasi Penting</span>
+                  </div>
+                  <p className="text-xs text-orange-600/80 leading-relaxed font-medium">
+                    Jika Anda memilih printer spesifik di atas, sistem akan mencetak struk secara **otomatis (Silent Print)** tanpa memunculkan kotak dialog printer lagi. Pastikan printer dalam keadaan menyala.
+                  </p>
+                </div>
+              </div>
+
+              <div className="bg-muted/30 rounded-[2rem] p-8 border border-border/50 flex flex-col items-center justify-center text-center space-y-4">
+                <div className="w-16 h-16 bg-card rounded-3xl flex items-center justify-center shadow-lg border border-border/50">
+                  <Barcode className="w-8 h-8 text-muted-foreground opacity-50" />
+                </div>
+                <div>
+                  <h5 className="font-bold text-sm">Barcode Scanner (HID)</h5>
+                  <p className="text-[10px] text-muted-foreground leading-relaxed mt-1">
+                    Scanner barcode akan otomatis terdeteksi sebagai input keyboard. Pastikan kursor aktif pada kolom pencarian barang saat melakukan scanning.
+                  </p>
+                </div>
+                <button className="px-5 py-2.5 bg-card border border-border rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-primary hover:text-white hover:border-primary transition-all">
+                  Tes Koneksi Scanner
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* ===== MODAL: ADD / EDIT SERVICE ===== */}
@@ -1534,6 +1655,85 @@ const Settings: React.FC<{
               </div>
             </form>
           </div>
+        </div>
+      )}
+      {/* Custom Reset Password Prompt Modal */}
+      {isResetPromptOpen && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-black/80 backdrop-blur-xl">
+          <div className="bg-card w-full max-w-sm rounded-[2rem] p-8 shadow-2xl border border-red-500/50 animate-in zoom-in duration-200">
+            <div className="flex items-center gap-4 mb-6">
+              <div className="w-12 h-12 bg-red-500/10 rounded-2xl flex items-center justify-center shrink-0">
+                <Trash2 className="w-6 h-6 text-red-500" />
+              </div>
+              <div>
+                <h3 className="text-lg font-black uppercase text-red-500">PENGAMANAN KRITIKAL</h3>
+              </div>
+            </div>
+            
+            <div className="p-3 mb-4 bg-red-500/10 border border-red-500/20 rounded-xl">
+              <p className="text-[10px] text-red-400 font-bold leading-relaxed text-center">
+                Tindakan ini akan menghapus SELURUH riwayat transaksi permanen! Data Master (User, Layanan, dll) akan tetap ada.
+              </p>
+            </div>
+            
+            <p className="text-xs text-muted-foreground mb-4 leading-relaxed font-medium text-center">
+              Masukkan Password Admin Anda untuk konfirmasi:
+            </p>
+            
+            <input 
+              type="password" 
+              autoFocus
+              className="w-full bg-muted border border-border rounded-xl px-4 py-3 mb-6 font-bold text-sm outline-none focus:ring-2 focus:ring-red-500"
+              value={resetPassword}
+              onChange={e => setResetPassword(e.target.value)}
+              onKeyDown={e => {
+                if (e.key === 'Enter' && resetPassword) {
+                  document.getElementById('btn-confirm-reset')?.click();
+                }
+              }}
+            />
+            
+            <div className="flex gap-3">
+              <button 
+                onClick={() => setIsResetPromptOpen(false)}
+                className="flex-1 py-3 bg-muted hover:bg-muted/70 rounded-xl font-bold text-xs uppercase transition-all"
+              >
+                Batal
+              </button>
+              <button 
+                id="btn-confirm-reset"
+                disabled={!resetPassword || isSaving}
+                onClick={async () => {
+                  try {
+                    setIsSaving(true);
+                    console.log('Initiating database reset...');
+                    const res = await api.post('/database/reset', { password: resetPassword });
+                    console.log('Reset response:', res.data);
+                    alert(res.data.message || 'Database berhasil di-reset.');
+                    window.location.href = '/';
+                  } catch (err: any) {
+                    console.error('Reset error:', err);
+                    const errorMsg = err.response?.data?.error || err.message;
+                    alert('Gagal mereset database: ' + errorMsg);
+                    setIsSaving(false);
+                    setIsResetPromptOpen(false);
+                  }
+                }}
+                className="flex-1 py-3 bg-red-500 hover:bg-red-600 text-white rounded-xl font-bold text-xs uppercase shadow-lg shadow-red-500/20 transition-all disabled:opacity-50"
+              >
+                {isSaving ? 'Memproses...' : 'Reset Sekarang'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* Global Success Notification */}
+      {saveSuccess && (
+        <div className="fixed bottom-10 left-1/2 -translate-x-1/2 z-[100] px-8 py-4 bg-green-500 text-white rounded-2xl shadow-2xl shadow-green-500/40 flex items-center gap-4 animate-in fade-in slide-in-from-bottom-5 duration-300">
+          <div className="w-8 h-8 bg-white/20 rounded-xl flex items-center justify-center">
+            <CheckCircle2 className="w-5 h-5" />
+          </div>
+          <span className="font-black uppercase tracking-widest text-xs">{saveSuccess}</span>
         </div>
       )}
     </div>

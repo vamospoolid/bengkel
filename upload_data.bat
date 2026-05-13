@@ -9,7 +9,7 @@ scp %DB_PATH% root@173.212.243.240:/var/www/bengkel/backend/prisma/dev.db
 
 echo.
 echo [3/3] Me-restart server di VPS agar data baru terbaca...
-ssh root@173.212.243.240 "pm2 restart bengkel-backend"
+ssh root@173.212.243.240 "cd /var/www/bengkel/backend && cp prisma/dev.db dev.db && pm2 restart bengkel-backend"
 
 echo.
 echo SELESAI! Data barang dan pelanggan sudah pindah ke VPS.

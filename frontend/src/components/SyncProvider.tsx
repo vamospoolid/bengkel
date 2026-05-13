@@ -42,7 +42,16 @@ const SyncProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => 
   }, []);
 
   const syncData = async () => {
-    const queue: PendingSync[] = JSON.parse(localStorage.getItem('sync_queue') || '[]');
+    let queue: PendingSync[] = [];
+    try {
+      const saved = localStorage.getItem('sync_queue');
+      queue = saved ? JSON.parse(saved) : [];
+      if (!Array.isArray(queue)) queue = [];
+    } catch (e) {
+      console.warn("Sync queue corrupted, resetting");
+      localStorage.setItem('sync_queue', '[]');
+      queue = [];
+    }
     setPendingCount(queue.length);
     
     if (queue.length === 0 || !navigator.onLine) return;
@@ -68,7 +77,9 @@ const SyncProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => 
     setPendingCount(updatedQueue.length);
     
     if (updatedQueue.length === 0 && queue.length > 0) {
-      toast.success('Semua data berhasil disinkronkan ke Cloud!');
+      toast.success(`${queue.length} data berhasil disinkronkan ke Server!`);
+    } else if (queue.length > updatedQueue.length) {
+      toast.success(`${queue.length - updatedQueue.length} data berhasil disinkronkan!`);
     }
   };
 
@@ -76,9 +87,11 @@ const SyncProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => 
     <>
       {children}
       {pendingCount > 0 && (
-        <div className="fixed bottom-4 left-4 z-[9999] bg-orange-500 text-white px-4 py-2 rounded-full shadow-lg flex items-center gap-2 animate-bounce">
-          <div className="w-2 h-2 bg-white rounded-full animate-pulse" />
-          <span className="text-xs font-black uppercase tracking-widest">{pendingCount} Data Menunggu Sinkronisasi</span>
+        <div className="fixed bottom-4 left-4 z-[9999] bg-orange-500 text-white px-4 py-2 rounded-full shadow-lg flex items-center gap-3 animate-pulse">
+          <div className="flex items-center gap-2">
+            <div className="w-2 h-2 bg-white rounded-full" />
+            <span className="text-xs font-black uppercase tracking-widest">{pendingCount} Data Menunggu Auto-Sync (30s)</span>
+          </div>
         </div>
       )}
     </>

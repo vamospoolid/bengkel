@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Search, Plus, Wrench, Clock, CheckCircle2, X, User, AlertCircle, Loader2, Trash2, Car, Settings, Phone, ClipboardList, Bike, Camera, Eye } from 'lucide-react';
 import api from '../api';
+import socket from '../socket';
 
 interface WorkshopTask {
   id: string;
@@ -41,17 +42,26 @@ const Workshop: React.FC = () => {
     fetchTasks();
     fetchMechanics();
     fetchServices();
+
+    // Socket.io Real-time listeners
+    socket.on('task-created', () => fetchTasks(true));
+    socket.on('task-updated', () => fetchTasks(true));
+
+    return () => {
+      socket.off('task-created');
+      socket.off('task-updated');
+    };
   }, []);
 
-  const fetchTasks = async () => {
+  const fetchTasks = async (silent = false) => {
     try {
-      setIsLoading(true);
+      if (!silent) setIsLoading(true);
       const res = await api.get('/work-orders');
       setTasks(res.data);
     } catch (error) {
       console.error('Failed to fetch tasks', error);
     } finally {
-      setIsLoading(false);
+      if (!silent) setIsLoading(false);
     }
   };
 

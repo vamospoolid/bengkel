@@ -137,9 +137,42 @@ const BarcodeLabel: React.FC<BarcodeLabelProps> = ({ product, products = [], wor
   const totalLabels = Object.values(productQtys).reduce((sum, q) => sum + q, 0);
 
   const handleSilentPrint = async () => {
+    if (totalLabels === 0) return alert('Pilih minimal 1 label untuk dicetak.');
     setIsPrinting(true);
+    
+    // 1. Coba cara Electron (Silent Print) - PALING STABIL
+    if ((window as any).electron) {
+      try {
+        const printerName = localStorage.getItem('label_printer');
+        if (!printerName) {
+          alert('Printer Label belum diatur di menu Pengaturan.');
+          setIsPrinting(false);
+          return;
+        }
+
+        const cfg = SIZES[size] || SIZES.medium;
+        const widthMicrons = parseInt(cfg.w) * 1000;
+        const heightMicrons = parseInt(cfg.h) * 1000;
+
+        const html = printAreaRef.current?.innerHTML || '';
+        const success = await (window as any).electron.invoke('print-silent', {
+          silent: true,
+          deviceName: printerName,
+          pageSize: { width: widthMicrons, height: heightMicrons },
+          margins: { marginType: 'none' }
+        }, `<html><head><style>@page { margin: 0; } body { margin: 0; padding: 0; }</style></head><body>${html}</body></html>`);
+
+        if (success) {
+          setIsPrinting(false);
+          return;
+        }
+      } catch (err) {
+        console.error('Electron label print failed', err);
+      }
+    }
+
+    // 2. Fallback ke Backend (Hanya jika diatur di VPS)
     try {
-      // If batch, send the full array. Backend needs update to handle multiple items.
       const printItems = initialProducts
         .filter(p => productQtys[p.id] > 0)
         .map(p => ({
@@ -147,16 +180,13 @@ const BarcodeLabel: React.FC<BarcodeLabelProps> = ({ product, products = [], wor
           qty: productQtys[p.id]
         }));
 
-      if (printItems.length === 0) return alert('Pilih minimal 1 label untuk dicetak.');
-
       await api.post('/print/labels', {
         items: printItems,
         showPrice,
         sizeType: size === 'large78x100' ? 'large70x100' : size === 'label3' ? 'label33x15' : size
       });
-      alert(`Berhasil mengirim ${totalLabels} label ke printer.`);
     } catch (error: any) {
-      console.error('Silent print error:', error);
+      console.error('Silent print fallback error:', error);
       alert('Gagal cetak silent. Silakan gunakan metode browser (tombol bawah).');
     } finally {
       setIsPrinting(false);
