@@ -1317,8 +1317,28 @@ const POS: React.FC = () => {
                       onKeyDown={e => e.key === 'Enter' && cashReceived >= total && processPayment()}
                     />
                   </div>
+                  
+                  {/* Quick Cash Buttons */}
+                  <div className="grid grid-cols-4 gap-2 mt-2">
+                    <button 
+                      onClick={() => setCashReceived(total)}
+                      className="py-3 bg-primary/10 border border-primary/20 text-primary rounded-xl text-[10px] font-black uppercase hover:bg-primary hover:text-white transition-all"
+                    >
+                      Uang Pas
+                    </button>
+                    {[20000, 50000, 100000].map(amt => (
+                      <button 
+                        key={amt}
+                        onClick={() => setCashReceived(amt)}
+                        className="py-3 bg-muted border border-border text-foreground rounded-xl text-[10px] font-black uppercase hover:bg-primary hover:text-white transition-all"
+                      >
+                        {amt / 1000}rb
+                      </button>
+                    ))}
+                  </div>
+
                   {cashReceived > 0 && (
-                    <div className={`flex justify-between items-center px-4 py-3 rounded-2xl font-black text-sm ${
+                    <div className={`flex justify-between items-center px-4 py-3 rounded-2xl font-black text-sm mt-4 ${
                       cashReceived >= total ? 'bg-green-500/10 text-green-500' : 'bg-red-500/10 text-red-500'
                     }`}>
                       <span>{cashReceived >= total ? 'Kembalian' : 'Kurang'}</span>
