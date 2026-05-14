@@ -1667,13 +1667,10 @@ app.get('/api/workshop/search/:plate', authenticate, async (req, res) => {
 
           try {
             if (!svcName) return null;
-            const svc = await prisma.service.findFirst({ 
-              where: { 
-                name: {
-                  equals: svcName
-                }
-              } 
-            });
+            // Fetch all services and find in-memory to avoid Prisma version/schema mismatch issues
+            const allServices = await prisma.service.findMany();
+            const svc = allServices.find(s => s.name.toLowerCase() === svcName.toLowerCase());
+            
             return {
               id: svc?.id || `temp-${Date.now()}-${Math.random()}`,
               name: svcName,
@@ -1681,6 +1678,7 @@ app.get('/api/workshop/search/:plate', authenticate, async (req, res) => {
               estimatedTime: svc?.estimatedTime || '-'
             };
           } catch (e) {
+            console.error('SERVICE_LOOKUP_ERROR:', e);
             return { id: `err-${Date.now()}`, name: svcName, price: manualPrice || 0, estimatedTime: '-' };
           }
         })
