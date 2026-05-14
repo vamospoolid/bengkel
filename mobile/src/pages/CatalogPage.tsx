@@ -77,11 +77,11 @@ export const CatalogPage: React.FC = () => {
           await html5QrCode.start(
             { facingMode: "environment" },
             { 
-              fps: 15, 
-              qrbox: { width: 250, height: 250 },
-              aspectRatio: 1.0
+              fps: 30, 
+              qrbox: { width: 300, height: 300 }
             },
             (decodedText) => {
+              alert("Barcode Terdeteksi: " + decodedText);
               handleBarcodeResult(decodedText);
               stopScanner(html5QrCode);
             },
@@ -168,7 +168,7 @@ export const CatalogPage: React.FC = () => {
   return (
     <div className="pb-32 mesh-bg min-h-screen">
       {/* Header */}
-      <div className="sticky top-0 z-20 bg-background/80 backdrop-blur-xl border-b border-white/5 px-6 pt-10 pb-6">
+      <div className="sticky top-0 z-20 bg-background/80 backdrop-blur-xl border-b border-white/5 px-4 pt-10 pb-6">
         <div className="flex items-center gap-4">
           <div className="w-12 h-12 bg-primary/20 rounded-2xl flex items-center justify-center text-primary shadow-lg shadow-primary/20">
             <Package className="w-6 h-6" />
@@ -180,7 +180,7 @@ export const CatalogPage: React.FC = () => {
         </div>
       </div>
 
-      <div className="px-6 pt-6 space-y-6">
+      <div className="px-4 pt-6 space-y-6">
         {/* Success Alert */}
         {showSuccess && (
           <div className="bg-green-500/10 border border-green-500/20 rounded-[2rem] p-5 flex items-center gap-4 animate-in zoom-in duration-300">
@@ -333,7 +333,7 @@ export const CatalogPage: React.FC = () => {
                   <input required placeholder="Scan atau Generate..."
                     value={form.barcode} 
                     onChange={e => handleBarcodeResult(e.target.value)}
-                    className="w-full bg-purple-500/5 border border-purple-500/20 rounded-2xl pl-12 pr-6 py-4 text-sm font-mono font-bold text-purple-400 focus:ring-2 focus:ring-purple-400/40 outline-none transition-all" />
+                    className="w-full bg-purple-500/5 border border-purple-500/20 rounded-2xl pl-12 pr-4 py-4 text-xs font-mono font-bold text-purple-400 focus:ring-2 focus:ring-purple-400/40 outline-none transition-all overflow-hidden text-ellipsis" />
                 </div>
                 <button type="button" onClick={startScanner}
                   className="px-5 bg-purple-500 text-white rounded-2xl shadow-lg shadow-purple-500/20 active:scale-90 transition-all flex items-center justify-center">

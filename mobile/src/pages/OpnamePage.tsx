@@ -46,9 +46,8 @@ export const OpnamePage: React.FC = () => {
           await html5QrCode.start(
             { facingMode: "environment" },
             { 
-              fps: 15, 
-              qrbox: { width: 250, height: 250 },
-              aspectRatio: 1.0
+              fps: 30, 
+              qrbox: { width: 300, height: 300 }
             },
             (decodedText) => {
               handleScanResult(decodedText);

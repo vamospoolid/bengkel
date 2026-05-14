@@ -62,6 +62,7 @@ export const Servis: React.FC = () => {
     setIsSaving(true);
     try {
       await api.post('/work-orders', form);
+      alert('Unit Berhasil Didaftarkan!');
       setShowSheet(false);
       setForm({ plateNumber:'', customerName:'', model:'', vehicleType:'MOTOR', complaint:'', mechanicId:'', services:[], whatsapp:'' });
       fetchAll();

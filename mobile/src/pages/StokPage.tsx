@@ -53,7 +53,7 @@ export const StokPage: React.FC = () => {
       scannerRef.current = qr;
       await qr.start(
         { facingMode: 'environment' },
-        { fps: 10, qrbox: { width: 260, height: 130 } },
+        { fps: 30, qrbox: { width: 300, height: 200 } },
         (decoded) => {
           scannedBarcode.current = decoded;
           stopScanner();
