@@ -1029,7 +1029,7 @@ const POS: React.FC = () => {
             {isCheckoutProcessing ? <Loader2 className="w-5 h-5 animate-spin" /> : <><CreditCard className="w-5 h-5" /> PROSES PEMBAYARAN</>}
           </button>
         </div>
-      </div>v>
+      </div>
 
       {/* MODALS */}
       {showSuccessModal && (
