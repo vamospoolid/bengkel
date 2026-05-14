@@ -88,19 +88,28 @@ ipcMain.handle('get-printers', async () => {
 ipcMain.handle('print-raw', async (event, printerName, transaction, workshop) => {
   return new Promise(async (resolve, reject) => {
     try {
-      const cleanPrinterName = printerName.trim();
+      // DEFAULT PRINTER LOGIC:
+      // Jika printerName kosong, coba cari POS80 secara otomatis
+      let cleanPrinterName = printerName ? printerName.trim() : '';
+      if (!cleanPrinterName) {
+        const list = await mainWindow.webContents.getPrintersAsync();
+        const pos80 = list.find(p => p.name.toUpperCase().includes('POS80') || p.name.toUpperCase().includes('80MM'));
+        cleanPrinterName = pos80 ? pos80.name : '';
+      }
+
+      if (!cleanPrinterName) {
+        return reject(new Error("Printer tidak ditemukan. Silakan pilih printer di pengaturan."));
+      }
       
-      // Workshop info is now passed entirely from the frontend
-      // to avoid needing a local database on the Electron side
-      let w = workshop || { name: 'JAKARTA MOTOR', address: '', phone: '' };
+      const w = workshop || { name: 'JAKARTA MOTOR', address: '', phone: '' };
       
       const printer = new ThermalPrinter({
-        type: PrinterTypes.EPSON,
-        interface: 'tcp://127.0.0.1:9000',
-        characterSet: 'PC858_EURO',
+        type: PrinterTypes.EPSON, // POS80 biasanya kompatibel dengan EPSON
+        interface: `printer:${cleanPrinterName}`,
+        characterSet: CharacterSet.SLOVENIA,
         removeSpecialCharacters: false,
         lineCharacter: "=",
-        width: 42
+        width: 42 // Standar 80mm
       });
 
       printer.alignCenter();
@@ -252,6 +261,48 @@ if ($Result) { Write-Output "Success" } else { Write-Error "WinSpool API Failed"
     } catch (e) {
       console.error(e);
       resolve(false);
+    }
+  });
+});
+
+// HANDLER KHUSUS PRINTER LABEL (BARCODE)
+ipcMain.handle('print-label', async (event, printerName, part) => {
+  return new Promise(async (resolve, reject) => {
+    try {
+      let cleanPrinterName = printerName ? printerName.trim() : '';
+      if (!cleanPrinterName) {
+        const list = await mainWindow.webContents.getPrintersAsync();
+        const labelPrinter = list.find(p => p.name.toUpperCase().includes('LABEL') || p.name.toUpperCase().includes('BARCODE'));
+        cleanPrinterName = labelPrinter ? labelPrinter.name : '';
+      }
+
+      if (!cleanPrinterName) return reject(new Error("Printer Label tidak ditemukan."));
+
+      const printer = new ThermalPrinter({
+        type: PrinterTypes.EPSON,
+        interface: `printer:${cleanPrinterName}`,
+        width: 32 // Biasanya lebih sempit untuk label
+      });
+
+      printer.alignCenter();
+      printer.setTextSize(1, 1);
+      printer.bold(true);
+      printer.println(part.name.substring(0, 20));
+      printer.bold(false);
+      printer.setTextNormal();
+      
+      // Barcode format (CODE128)
+      printer.printBarcode(part.barcode, 73, { h: 50, w: 2 });
+      printer.println(part.barcode);
+      
+      printer.setTextSize(1, 1);
+      printer.println(`Rp ${part.priceNormal.toLocaleString()}`);
+      
+      printer.cut();
+      await printer.execute();
+      resolve(true);
+    } catch (error) {
+      reject(error);
     }
   });
 });
