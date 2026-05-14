@@ -860,7 +860,7 @@ const POS: React.FC = () => {
                   <input 
                     type="text" 
                     readOnly
-                    value={selectedPlate}
+                    value={plateNumber}
                     placeholder="PILIH DARI BENGKEL" 
                     className="w-full bg-primary/5 border border-primary/20 rounded-2xl pl-12 pr-12 py-4 font-black uppercase text-xs focus:outline-none"
                   />
