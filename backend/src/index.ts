@@ -1609,7 +1609,17 @@ app.get('/api/workshop/search/:plate', authenticate, async (req, res) => {
           };
         })
       );
-      return res.json({ ...task, serviceDetails, mode: 'WORKSHOP' });
+
+      // Extract parts data
+      const partDetails = (Array.isArray(task.partsUsed) ? task.partsUsed : []).map((p: any) => ({
+        id: p.id,
+        name: p.name,
+        price: p.price,
+        quantity: p.quantity || 1,
+        type: 'part'
+      }));
+
+      return res.json({ ...task, serviceDetails, partDetails, mode: 'WORKSHOP' });
     }
 
     // 2. Fallback: If no DONE work order, check for Vehicle record (Option A)
