@@ -188,7 +188,7 @@ const Transactions: React.FC = () => {
     // Jika di Electron, gunakan silent print jika printer dipilih
     const defaultPrinter = localStorage.getItem('default_printer');
     if ((window as any).electron && defaultPrinter) {
-      (window as any).electron.invoke('print-raw', defaultPrinter, tx, workshopProfile);
+      (window as any).electron.invoke('print-raw', defaultPrinter, { ...tx, isCopy: true }, workshopProfile);
       return;
     }
     

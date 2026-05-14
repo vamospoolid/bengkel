@@ -512,7 +512,10 @@ const POS: React.FC = () => {
 
     // SILENT PRINT TRIGGER
     if (autoPrint && transaction.id) {
-      handleSilentPrint(transaction);
+      console.log('Triggering auto-print for transaction:', transaction.id);
+      setTimeout(() => {
+        handleSilentPrint(transaction);
+      }, 500);
     }
   };
 

@@ -110,6 +110,13 @@ ipcMain.handle('print-raw', async (event, printerName, transaction, workshop) =>
       });
 
       printer.alignCenter();
+      if (transaction.reprintCount > 0 || transaction.isCopy) {
+        printer.setTextDoubleHeight();
+        printer.println("*** SALINAN ***");
+        printer.setTextNormal();
+        printer.newLine();
+      }
+
       printer.setTextDoubleHeight();
       printer.setTextDoubleWidth();
       printer.println(w.name || 'JAKARTA MOTOR');
@@ -166,10 +173,7 @@ ipcMain.handle('print-raw', async (event, printerName, transaction, workshop) =>
       }
       printer.newLine();
       printer.newLine();
-      printer.newLine();
-      printer.newLine();
-      printer.add(Buffer.from([0x1b, 0x69])); 
-      printer.add(Buffer.from([0x1d, 0x56, 0x00])); 
+      printer.add(Buffer.from([0x1d, 0x56, 0x00])); // Standard GS V command for single cut
 
       const buffer = printer.getBuffer();
       
