@@ -51,7 +51,7 @@ const Suppliers: React.FC = () => {
     setIsSaving(true);
     try {
       if (editingSupplier) {
-        await api.patch(`/suppliers/${editingSupplier.id}`, formData);
+        await api.patch(`/suppliers/${encodeURIComponent(editingSupplier.id)}`, formData);
       } else {
         await api.post('/suppliers', formData);
       }
@@ -79,7 +79,7 @@ const Suppliers: React.FC = () => {
   const handleDeleteSupplier = async (id: string) => {
     if (!window.confirm('Apakah Anda yakin ingin menghapus supplier ini?')) return;
     try {
-      await api.delete(`/suppliers/${id}`);
+      await api.delete(`/suppliers/${encodeURIComponent(id)}`);
       fetchSuppliers();
     } catch (error: any) {
       alert('Gagal menghapus supplier: ' + (error.response?.data?.error || error.message));

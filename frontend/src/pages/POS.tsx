@@ -463,7 +463,8 @@ const POS: React.FC = () => {
         } else {
           console.log('Setting cart with:', [...serviceItems, ...partItems]);
           setCart([...serviceItems, ...partItems]);
-          alert(`Berhasil menarik ${serviceItems.length} Jasa & ${partItems.length} Part dari bengkel!`);
+          toast.success(`Berhasil menarik ${serviceItems.length} Jasa & ${partItems.length} Part!`, { icon: '🔧' });
+          setTimeout(() => searchInputRef.current?.focus(), 100);
         }
       } else if (task.mode === 'VEHICLE') {
         // Also auto-select customer for existing vehicles
