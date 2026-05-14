@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Search, Plus, User, MapPin, Phone, Briefcase, ChevronRight, X, Mail, CreditCard, History, Loader2, MessageSquare, AlertCircle, Clock, Pencil, Trash2 } from 'lucide-react';
 import api from '../api';
 
@@ -49,8 +49,14 @@ const Customers: React.FC = () => {
     creditLimit: 0
   });
 
+  const searchInputRef = useRef<HTMLInputElement>(null);
+
   useEffect(() => {
     fetchCustomers();
+    // Auto-focus search input on mount
+    setTimeout(() => {
+      searchInputRef.current?.focus();
+    }, 500);
   }, []);
 
   const fetchCustomers = async () => {
@@ -213,6 +219,7 @@ const Customers: React.FC = () => {
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground w-5 h-5" />
           <input
+            ref={searchInputRef}
             type="text"
             placeholder="Cari nama, no. hp, atau plat..."
             className="w-full bg-card border border-border rounded-xl pl-10 pr-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all font-medium"

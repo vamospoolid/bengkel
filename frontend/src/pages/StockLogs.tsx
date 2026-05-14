@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { History, Search, Filter, ArrowUpRight, ArrowDownLeft, User, Package, Calendar, Loader2, RefreshCw, X, AlertCircle } from 'lucide-react';
 import api from '../api';
 
@@ -25,8 +25,14 @@ const StockLogs: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedLog, setSelectedLog] = useState<StockLog | null>(null);
 
+  const searchInputRef = useRef<HTMLInputElement>(null);
+
   useEffect(() => {
     fetchLogs();
+    // Auto-focus search input on mount
+    setTimeout(() => {
+      searchInputRef.current?.focus();
+    }, 500);
   }, []);
 
   const fetchLogs = async () => {
@@ -58,6 +64,7 @@ const StockLogs: React.FC = () => {
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground w-4 h-4" />
             <input
+              ref={searchInputRef}
               type="text"
               placeholder="Cari Barang / Barcode / Alasan..."
               className="bg-muted border border-border rounded-xl pl-10 pr-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 w-64"

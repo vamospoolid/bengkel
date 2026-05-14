@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Search, Car, History, Phone, User, Calendar, ChevronRight, ArrowLeft, Loader2, Wrench, FileText, Users, Activity, Star, Clock, Bike } from 'lucide-react';
 import api from '../api';
 
@@ -42,9 +42,17 @@ const Vehicles: React.FC = () => {
   const [history, setHistory] = useState<TransactionHistory[]>([]);
   const [isLoadingHistory, setIsLoadingHistory] = useState(false);
 
+  const searchInputRef = useRef<HTMLInputElement>(null);
+
   useEffect(() => {
     fetchVehicles();
-  }, []);
+    // Auto-focus search input on mount
+    if (!selectedVehicle) {
+      setTimeout(() => {
+        searchInputRef.current?.focus();
+      }, 500);
+    }
+  }, [selectedVehicle]);
 
   const fetchVehicles = async () => {
     try {
@@ -287,6 +295,7 @@ const Vehicles: React.FC = () => {
         <div className="relative flex-1 max-w-md group">
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground w-5 h-5 group-focus-within:text-primary transition-colors" />
           <input
+            ref={searchInputRef}
             type="text"
             placeholder="Ketik Plat Nomor (Contoh: B 1234 ABC)..."
             className="w-full bg-card border border-border rounded-2xl pl-12 pr-6 py-4 focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all font-black tracking-widest shadow-sm uppercase"

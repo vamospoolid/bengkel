@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Plus, TrendingUp, TrendingDown, Loader2, X, Search, Calendar, Filter, DollarSign, Wallet, ArrowUpRight, ArrowDownRight, Tag, FileText } from 'lucide-react';
 import api from '../api';
 
@@ -41,8 +41,14 @@ const Finance: React.FC<FinanceProps> = ({ activeTab = 'finance' }) => {
     date: new Date().toISOString().split('T')[0]
   });
 
+  const searchInputRef = useRef<HTMLInputElement>(null);
+
   useEffect(() => {
     fetchRecords();
+    // Auto-focus search input on mount
+    setTimeout(() => {
+      searchInputRef.current?.focus();
+    }, 500);
   }, [activeTab]);
 
   const fetchRecords = async () => {
@@ -215,6 +221,7 @@ const Finance: React.FC<FinanceProps> = ({ activeTab = 'finance' }) => {
           <div className="relative flex-1 w-full">
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground w-5 h-5" />
             <input
+              ref={searchInputRef}
               type="text"
               placeholder={`Cari ${activeTab === 'income' ? 'pemasukan' : activeTab === 'expense' ? 'pengeluaran' : 'transaksi'}...`}
               className="w-full bg-muted/50 border border-border rounded-2xl pl-12 pr-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all font-bold"

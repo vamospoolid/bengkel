@@ -907,9 +907,13 @@ const POS: React.FC = () => {
                     <div className="flex-1 min-w-0">
                       <h5 className="text-[10px] font-black leading-tight group-hover:text-primary transition-colors line-clamp-1 truncate uppercase">{item.name}</h5>
                       <div className="flex items-center gap-2 mt-0.5">
-                        <span className="text-[7px] font-black text-muted-foreground uppercase tracking-widest px-1 py-0.5 bg-muted rounded">{item.type}</span>
+                        <span className={`text-[7px] font-black uppercase tracking-widest px-1 py-0.5 rounded ${
+                          item.type === 'part' ? 'bg-primary/10 text-primary' : 'bg-blue-500/10 text-blue-500'
+                        }`}>
+                          {item.type === 'part' ? 'Suku Cadang' : 'Layanan Jasa'}
+                        </span>
                         {item.type === 'part' && (
-                          <span className="text-[7px] font-black text-primary uppercase tracking-widest">{item.priceTier}</span>
+                          <span className="text-[7px] font-black text-primary/60 uppercase tracking-widest">{item.priceTier}</span>
                         )}
                       </div>
                     </div>
@@ -1105,7 +1109,7 @@ const POS: React.FC = () => {
       {/* Bug #1 fix: Payment Modal — was completely empty (placeholder comment only) */}
       {showPaymentModal && (
         <div className="fixed inset-0 z-[200] flex items-center justify-center p-6 bg-black/80 backdrop-blur-xl animate-in fade-in duration-300">
-          <div className="bg-card w-full max-w-md rounded-[3rem] shadow-2xl border border-border overflow-hidden animate-in zoom-in duration-300">
+          <div className="bg-card w-full max-w-5xl rounded-[3rem] shadow-2xl border border-border overflow-hidden animate-in zoom-in duration-300">
             
             {/* Header */}
             <div className="p-8 border-b border-border/50 bg-primary/5 flex items-center justify-between">
@@ -1116,7 +1120,7 @@ const POS: React.FC = () => {
                 <div>
                   <h3 className="text-xl font-black uppercase tracking-tight">Konfirmasi Pembayaran</h3>
                   <p className="text-[10px] text-muted-foreground font-black uppercase tracking-widest mt-0.5">
-                    Total: <span className="text-primary">Rp {total.toLocaleString('id-ID')}</span>
+                    Total Tagihan: <span className="text-primary font-black">Rp {total.toLocaleString('id-ID')}</span>
                   </p>
                 </div>
               </div>
@@ -1128,26 +1132,51 @@ const POS: React.FC = () => {
               </button>
             </div>
 
-            <div className="p-8 pb-0 max-h-[25vh] overflow-y-auto custom-scrollbar">
-              <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1 mb-3 block">Review Pesanan</label>
-              <div className="space-y-2">
-                {cart.map(item => (
-                  <div key={item.id} className="flex justify-between items-center bg-muted/30 p-3 rounded-xl border border-border/30">
-                    <div className="flex-1 min-w-0 pr-4">
-                      <p className="text-[10px] font-black uppercase truncate">{item.name}</p>
-                      <p className="text-[8px] font-bold text-muted-foreground uppercase">{item.quantity}x @ Rp {item.price.toLocaleString()}</p>
+            <div className="grid grid-cols-1 lg:grid-cols-2">
+              {/* LEFT SIDE: Order Review */}
+              <div className="p-8 bg-muted/10 border-r border-border/50">
+                <div className="flex items-center justify-between mb-6">
+                  <label className="text-[10px] font-black uppercase tracking-widest text-primary ml-1">Review Pesanan</label>
+                  <span className="text-[10px] font-black px-3 py-1 bg-primary/10 text-primary rounded-full">{cart.length} Item</span>
+                </div>
+                <div className="space-y-3 max-h-[50vh] overflow-y-auto custom-scrollbar pr-4">
+                  {cart.map(item => (
+                    <div key={item.id} className="flex justify-between items-center bg-card p-4 rounded-2xl border border-border/50 shadow-sm">
+                      <div className="flex-1 min-w-0 pr-4">
+                        <p className="text-[11px] font-black uppercase truncate leading-tight mb-1">{item.name}</p>
+                        <div className="flex items-center gap-3">
+                          <span className="text-[8px] font-bold text-muted-foreground uppercase">{item.quantity}x @ Rp {item.price.toLocaleString()}</span>
+                          <span className={`text-[8px] font-black uppercase px-1.5 py-0.5 rounded ${
+                            item.type === 'part' ? 'bg-primary/10 text-primary' : 'bg-blue-500/10 text-blue-500'
+                          }`}>
+                            {item.type === 'part' ? 'PART' : 'SERVICE'}
+                          </span>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-[12px] font-black text-primary">Rp {(item.price * item.quantity).toLocaleString()}</p>
+                      </div>
                     </div>
-                    <div className="text-right">
-                      <p className="text-[10px] font-black text-primary">Rp {(item.price * item.quantity).toLocaleString()}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
+                  ))}
+                </div>
 
-            <div className="p-8 space-y-6">
-              {/* Payment Method */}
-              <div className="space-y-3">
+                <div className="mt-8 pt-6 border-t border-border/50">
+                   <div className="flex justify-between items-center bg-zinc-900 p-6 rounded-3xl text-white shadow-xl">
+                      <div>
+                        <p className="text-[10px] font-black text-zinc-500 uppercase tracking-widest mb-1">Total Tagihan</p>
+                        <h4 className="text-3xl font-black italic">Rp {total.toLocaleString('id-ID')}</h4>
+                      </div>
+                      <div className="p-3 bg-white/5 rounded-2xl">
+                        <DollarSign className="w-8 h-8 text-primary" />
+                      </div>
+                   </div>
+                </div>
+              </div>
+
+              {/* RIGHT SIDE: Payment Method & Input */}
+              <div className="p-8 space-y-6">
+                {/* Payment Method */}
+                <div className="space-y-3">
                 <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Metode Pembayaran</label>
                 <div className="grid grid-cols-2 gap-3">
                   {([
@@ -1246,6 +1275,7 @@ const POS: React.FC = () => {
                   : <><CheckCircle2 className="w-6 h-6" /> PROSES PEMBAYARAN</>
                 }
               </button>
+              </div>
             </div>
           </div>
         </div>

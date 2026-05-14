@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Search, Plus, Truck, MapPin, Phone, ChevronRight, X, History, Loader2, Edit3, Trash2 } from 'lucide-react';
 import api from '../api';
 
@@ -24,8 +24,14 @@ const Suppliers: React.FC = () => {
     address: ''
   });
 
+  const searchInputRef = useRef<HTMLInputElement>(null);
+
   useEffect(() => {
     fetchSuppliers();
+    // Auto-focus search input on mount
+    setTimeout(() => {
+      searchInputRef.current?.focus();
+    }, 500);
   }, []);
 
   const fetchSuppliers = async () => {
@@ -84,6 +90,7 @@ const Suppliers: React.FC = () => {
       <div className="relative">
         <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground w-6 h-6" />
         <input
+          ref={searchInputRef}
           type="text"
           placeholder="Cari nama supplier atau telepon..."
           className="w-full bg-card/30 border border-border rounded-2xl pl-14 pr-6 py-4 focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all font-bold text-lg backdrop-blur-sm"
