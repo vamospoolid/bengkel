@@ -423,6 +423,7 @@ const POS: React.FC = () => {
         } else {
           console.log('Setting cart with:', [...serviceItems, ...partItems]);
           setCart([...serviceItems, ...partItems]);
+          alert(`Berhasil menarik ${serviceItems.length} Jasa & ${partItems.length} Part dari bengkel!`);
         }
       } else {
         setCart([]);
@@ -542,13 +543,15 @@ const POS: React.FC = () => {
       cashReceived: paymentMethod === 'tunai' ? Number(cashReceived) : null
     });
     
-    setShowPaymentModal(false);
-    setShowSuccessModal(true);
     setCart([]);
     setPlateNumber('');
     setCashReceived(0);
     setWorkOrderId(null);
     setPulledWorkOrder(null);
+    
+    // Move modal trigger to the end to ensure state is ready
+    setShowPaymentModal(false);
+    setShowSuccessModal(true);
     
     if (isOffline) {
       toast.success('Offline: Transaksi disimpan secara lokal!');
