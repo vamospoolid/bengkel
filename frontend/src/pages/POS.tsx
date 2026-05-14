@@ -327,7 +327,7 @@ const POS: React.FC = () => {
       return;
     }
     
-    const customId = `custom-service-\${Date.now()}`;
+    const customId = `custom-service-${Date.now()}`;
     setCart(prev => [...prev, { 
       id: customId, 
       name: customServiceName.trim().toUpperCase(), 
@@ -902,59 +902,68 @@ const POS: React.FC = () => {
               </div>
             ) : (
               cart.map(item => (
-                <div key={item.id} className="flex flex-col gap-4 p-5 bg-card border border-border/50 rounded-[2.5rem] hover:border-primary/30 transition-all group relative overflow-hidden shadow-sm">
-                  <div className="flex justify-between items-start relative z-10">
-                    <div className="flex-1 pr-2">
-                      <h5 className="text-[11px] font-black leading-tight group-hover:text-primary transition-colors line-clamp-2">{item.name}</h5>
-                      <span className="text-[8px] font-black text-muted-foreground uppercase tracking-widest mt-1 inline-block px-1.5 py-0.5 bg-muted rounded-md">{item.type}</span>
+                <div key={item.id} className="flex flex-col gap-2 p-3 bg-card border border-border/50 rounded-2xl hover:border-primary/30 transition-all group relative overflow-hidden shadow-sm">
+                  <div className="flex justify-between items-start gap-2 relative z-10">
+                    <div className="flex-1 min-w-0">
+                      <h5 className="text-[10px] font-black leading-tight group-hover:text-primary transition-colors line-clamp-1 truncate uppercase">{item.name}</h5>
+                      <div className="flex items-center gap-2 mt-0.5">
+                        <span className="text-[7px] font-black text-muted-foreground uppercase tracking-widest px-1 py-0.5 bg-muted rounded">{item.type}</span>
+                        {item.type === 'part' && (
+                          <span className="text-[7px] font-black text-primary uppercase tracking-widest">{item.priceTier}</span>
+                        )}
+                      </div>
                     </div>
-                    <button onClick={() => setCart(prev => prev.filter(i => i.id !== item.id))} className="text-muted-foreground hover:text-red-500 transition-colors"><Trash2 className="w-3.5 h-3.5" /></button>
+                    <button onClick={() => setCart(prev => prev.filter(i => i.id !== item.id))} className="text-muted-foreground hover:text-red-500 transition-colors p-1"><Trash2 className="w-3 h-3" /></button>
                   </div>
                   
+                  <div className="flex justify-between items-center relative z-10">
+                    <div className="flex items-center gap-1.5 bg-muted rounded-xl p-1 border border-border/30">
+                      <button onClick={() => updateQuantity(item.id, -1)} className="w-5 h-5 flex items-center justify-center bg-card rounded-lg hover:text-primary transition-all active:scale-90"><Minus className="w-2 h-2" /></button>
+                      <span className="w-4 text-center font-black text-[10px]">{item.quantity}</span>
+                      <button onClick={() => updateQuantity(item.id, 1)} className="w-5 h-5 flex items-center justify-center bg-card rounded-lg hover:text-primary transition-all active:scale-90"><Plus className="w-2 h-2" /></button>
+                    </div>
+
+                    <div className="text-right">
+                      {item.isMechanicFault ? (
+                        <p className="text-[9px] font-black text-red-500 uppercase tracking-tighter">FREE (RUSAK)</p>
+                      ) : (
+                        <p className="text-[11px] font-black text-primary">Rp {(item.price * item.quantity).toLocaleString()}</p>
+                      )}
+                    </div>
+                  </div>
+
                   {item.type === 'service' && (
-                    <div className="space-y-1 relative z-10">
+                    <div className="relative z-10">
                       <select 
                         value={item.mechanicId || ''} 
                         onChange={(e) => updateMechanic(item.id, e.target.value)} 
-                        className="w-full bg-muted border border-border rounded-xl text-[10px] font-black p-2 outline-none focus:border-primary"
+                        className="w-full bg-muted border border-border rounded-lg text-[8px] font-black px-2 py-1.5 outline-none focus:border-primary appearance-none truncate"
                       >
-                        <option value="">-- Pilih Mekanik --</option>
+                        <option value="">-- Mekanik --</option>
                         {mechanics.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
                       </select>
                     </div>
                   )}
                   
-                  <div className="flex justify-between items-center mt-1 relative z-10">
-                    <div className="flex items-center gap-1.5 bg-muted rounded-2xl p-1 border border-border/50">
-                      <button onClick={() => updateQuantity(item.id, -1)} className="w-6 h-6 flex items-center justify-center bg-card rounded-lg hover:text-primary"><Minus className="w-2.5 h-2.5" /></button>
-                      <span className="w-6 text-center font-black text-[11px]">{item.quantity}</span>
-                      <button onClick={() => updateQuantity(item.id, 1)} className="w-6 h-6 flex items-center justify-center bg-card rounded-lg hover:text-primary"><Plus className="w-2.5 h-2.5" /></button>
-                    </div>
-
-                    <div className="text-right">
-                      {item.isMechanicFault ? (
-                        <p className="text-[10px] font-black text-red-500 uppercase tracking-tighter">FREE (RUSAK)</p>
-                      ) : (
-                        <p className="text-[13px] font-black text-primary">Rp {(item.price * item.quantity).toLocaleString()}</p>
-                      )}
-                    </div>
-                  </div>
-
                   {item.type === 'part' && (
-                    <div className="flex justify-between items-center mt-1 pt-3 border-t border-border/50 relative z-10">
+                    <div className="flex justify-between items-center mt-0.5 pt-2 border-t border-border/30 relative z-10">
                       <div className="flex gap-1">
                         {(['normal', 'grosir', 'bengkel'] as const).map(tier => (
                           <button 
                             key={tier} 
                             onClick={() => updatePriceTier(item.id, tier)}
-                            className={`w-5 h-5 flex items-center justify-center rounded-md text-[8px] font-black transition-all \${item.priceTier === tier ? 'bg-primary text-white shadow-md' : 'bg-muted text-muted-foreground'}`}
+                            className={`w-4 h-4 flex items-center justify-center rounded-md text-[7px] font-black transition-all ${item.priceTier === tier ? 'bg-primary text-white shadow-md' : 'bg-muted text-muted-foreground hover:bg-primary/10'}`}
                           >
                             {tier[0].toUpperCase()}
                           </button>
                         ))}
                       </div>
-                      <button onClick={() => toggleMechanicFault(item.id)} className={`p-1.5 rounded-lg border text-[8px] font-black transition-all \${item.isMechanicFault ? 'bg-red-500 text-white border-red-500' : 'bg-muted border-border text-zinc-400 hover:text-red-500'}`}>
-                        <AlertTriangle className="w-3 h-3" />
+                      <button 
+                        onClick={() => toggleMechanicFault(item.id)}
+                        className={`p-1 rounded-md transition-all ${item.isMechanicFault ? 'bg-red-500 text-white shadow-md' : 'bg-muted text-muted-foreground hover:bg-red-500/10'}`}
+                        title="Free (Kesalahan Mekanik)"
+                      >
+                        <AlertTriangle className="w-2.5 h-2.5" />
                       </button>
                     </div>
                   )}
@@ -1117,6 +1126,23 @@ const POS: React.FC = () => {
               >
                 <X className="w-5 h-5" />
               </button>
+            </div>
+
+            <div className="p-8 pb-0 max-h-[25vh] overflow-y-auto custom-scrollbar">
+              <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1 mb-3 block">Review Pesanan</label>
+              <div className="space-y-2">
+                {cart.map(item => (
+                  <div key={item.id} className="flex justify-between items-center bg-muted/30 p-3 rounded-xl border border-border/30">
+                    <div className="flex-1 min-w-0 pr-4">
+                      <p className="text-[10px] font-black uppercase truncate">{item.name}</p>
+                      <p className="text-[8px] font-bold text-muted-foreground uppercase">{item.quantity}x @ Rp {item.price.toLocaleString()}</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-[10px] font-black text-primary">Rp {(item.price * item.quantity).toLocaleString()}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
 
             <div className="p-8 space-y-6">
