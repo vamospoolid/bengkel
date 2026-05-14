@@ -719,26 +719,38 @@ app.patch('/api/products/:id', authenticate, authorize(['ADMIN', 'CASHIER']), as
       const oldProduct = await tx.product.findUnique({ where: { id: productId } });
       if (!oldProduct) throw new Error('Product not found');
 
+      const updatedData = { ...data };
+      if (data.stock !== undefined) {
+        // If the client sends a special object like { increment: 5 }, use it directly
+        // Otherwise, if they send a number, we treat it as an adjustment from the old value
+        if (typeof data.stock === 'number') {
+           const diff = Math.round(data.stock - oldProduct.stock);
+           updatedData.stock = { increment: diff };
+        }
+      }
+
       const updatedProduct = await tx.product.update({
         where: { id: productId },
-        data
+        data: updatedData
       });
 
       // If stock changed, create a log
-      if (data.stock !== undefined && Number(data.stock) !== oldProduct.stock) {
-        // Verify user exists for log safety
-        const logUser = await tx.user.findUnique({ where: { id: (req as any).user.id } });
-
-        await tx.stockLog.create({
-          data: {
-            productId: productId,
-            userId: logUser ? logUser.id : null,
-            type: Number(data.stock) > oldProduct.stock ? 'RESTOCK' : 'ADJUSTMENT',
-            changeQty: Math.round(Number(data.stock) - oldProduct.stock),
-            previousStock: Math.round(oldProduct.stock),
-            currentStock: Math.round(Number(data.stock))
-          }
-        });
+      if (data.stock !== undefined) {
+        const currentStock = typeof updatedProduct.stock === 'number' ? updatedProduct.stock : (updatedProduct as any).stock;
+        const diff = Math.round(currentStock - oldProduct.stock);
+        
+        if (diff !== 0) {
+          await tx.stockLog.create({
+            data: {
+              productId: productId,
+              userId: (req as any).user.id,
+              type: diff > 0 ? 'RESTOCK' : 'ADJUSTMENT',
+              changeQty: diff,
+              previousStock: Math.round(oldProduct.stock),
+              currentStock: Math.round(currentStock)
+            }
+          });
+        }
       }
 
       return updatedProduct;

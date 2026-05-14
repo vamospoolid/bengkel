@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Wrench, Clock, CheckCircle2, X, AlertCircle, Loader2, Trash2, Car, Bike, ArrowRight, Search, Plus, ZapIcon, User, Phone, RotateCcw } from 'lucide-react';
+import { Wrench, Clock, CheckCircle2, X, AlertCircle, Loader2, Trash2, Car, Bike, ArrowRight, Search, Plus, ZapIcon, User, Phone, RotateCcw, Image as ImageIcon } from 'lucide-react';
 import api from '../api';
 
 const STATUS_CONFIG: Record<string, any> = {
@@ -87,12 +87,20 @@ export const Servis: React.FC = () => {
       <div className="sticky top-0 z-20 bg-background/95 backdrop-blur-md border-b border-border/50 px-4 pt-4 pb-3 space-y-3">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-xl font-black uppercase tracking-tight">Antrian Servis</h1>
+            <h1 className="text-xl font-black uppercase tracking-tight text-gradient">Antrian Servis</h1>
             <p className="text-[10px] text-muted-foreground">{tasks.length} unit terdaftar</p>
           </div>
-          <button onClick={fetchAll} className="p-2.5 bg-muted rounded-xl active:scale-90 transition-all">
-            <RotateCcw className="w-4 h-4"/>
-          </button>
+          <div className="flex items-center gap-2">
+            <button onClick={() => { setSearch(''); setActiveTab('ALL'); fetchAll(); }} 
+              className="p-2.5 bg-muted rounded-xl active:scale-90 transition-all border border-white/5">
+              <RotateCcw className="w-4 h-4 text-muted-foreground"/>
+            </button>
+            <button onClick={()=>setShowSheet(true)}
+              className="flex items-center gap-2 px-4 py-2.5 bg-primary text-white rounded-xl font-black text-[10px] uppercase tracking-widest shadow-lg shadow-primary/20 active:scale-95 transition-all">
+              <Plus className="w-4 h-4"/>
+              Unit Baru
+            </button>
+          </div>
         </div>
 
         {/* Search */}
@@ -184,6 +192,38 @@ export const Servis: React.FC = () => {
                       </div>
                     </div>
                   )}
+
+                  {/* Service Photos Section */}
+                  <div className="px-4 pt-3">
+                    <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground mb-2 flex items-center gap-2">
+                      <ImageIcon className="w-3 h-3"/> Dokumentasi Foto
+                    </p>
+                    <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-none">
+                      {(task.photos || []).map((img: string, idx: number) => (
+                        <div key={idx} className="w-20 h-20 rounded-xl bg-muted border border-border shrink-0 overflow-hidden relative group">
+                          <img src={img} alt="servis" className="w-full h-full object-cover" />
+                        </div>
+                      ))}
+                      <label className="w-20 h-20 rounded-xl border-2 border-dashed border-border flex flex-col items-center justify-center text-muted-foreground active:bg-muted transition-all shrink-0">
+                        <Plus className="w-5 h-5 mb-1 opacity-50"/>
+                        <span className="text-[8px] font-bold">TAMBAH</span>
+                        <input type="file" accept="image/*" capture="environment" className="hidden" 
+                          onChange={async (e) => {
+                            const file = e.target.files?.[0];
+                            if (!file) return;
+                            const reader = new FileReader();
+                            reader.onload = async (rv) => {
+                              const base64 = rv.target?.result as string;
+                              const updatedPhotos = [...(task.photos || []), base64];
+                              await api.patch(`/work-orders/${task.id}`, { photos: updatedPhotos });
+                              fetchAll();
+                            };
+                            reader.readAsDataURL(file);
+                          }}
+                        />
+                      </label>
+                    </div>
+                  </div>
                   {task.startTime && (
                     <div className="px-4 pt-2">
                       <div className="flex items-center gap-1.5 text-[9px] font-black text-blue-400 uppercase tracking-widest px-3 py-1.5 bg-blue-500/5 rounded-xl border border-blue-500/20">
@@ -221,11 +261,6 @@ export const Servis: React.FC = () => {
         })}
       </div>
 
-      {/* FAB */}
-      <button onClick={()=>setShowSheet(true)}
-        className="fixed bottom-24 right-5 z-30 flex items-center gap-2 px-5 py-3.5 bg-primary text-white rounded-full font-black text-sm shadow-2xl shadow-primary/40 active:scale-95 transition-all">
-        <Plus className="w-5 h-5"/> Tambah Unit
-      </button>
 
       {/* Bottom Sheet */}
       {showSheet && (

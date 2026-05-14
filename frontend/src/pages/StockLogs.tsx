@@ -9,6 +9,7 @@ interface StockLog {
   previousStock: number;
   currentStock: number;
   description: string;
+  reference?: string;
   createdAt: string;
   product: {
     name: string;

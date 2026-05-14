@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Plus, Filter, MoreVertical, Barcode, Loader2, X, Trash2, Edit3, History, Bike, Car, Layers, MapPin, Package, Tag, ChevronDown, ChevronRight, Minus, TrendingUp, ShoppingCart, DollarSign, CheckCircle2, Printer, Download, AlertTriangle, FileText, Camera } from 'lucide-react';
-import { Html5QrcodeScanner, Html5QrcodeSupportedFormats } from 'html5-qrcode';
+import { Search, Plus, Filter, MoreVertical, Barcode, Loader2, X, Trash2, Edit3, History, Bike, Car, Layers, MapPin, Package, Tag, ChevronDown, ChevronRight, Minus, TrendingUp, ShoppingCart, DollarSign, CheckCircle2, Printer, Download, AlertTriangle, FileText } from 'lucide-react';
 import api from '../api';
 import BarcodeLabel from '../components/BarcodeLabel';
 import socket from '../socket';
@@ -67,10 +66,6 @@ const Inventory: React.FC = () => {
   const [isPrinting, setIsPrinting] = useState(false);
   const [printContent, setPrintContent] = useState<React.ReactNode>(null);
   
-  // Camera Scanner in Form
-  const [isFormScanning, setIsFormScanning] = useState(false);
-  const formScannerRef = React.useRef<Html5QrcodeScanner | null>(null);
-
   // Advanced Adjustment
   const [adjustmentReason, setAdjustmentReason] = useState('DAMAGED');
   const [adjustmentNotes, setAdjustmentNotes] = useState('');
@@ -136,45 +131,10 @@ const Inventory: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    if (isFormScanning) {
-      setTimeout(() => {
-        const scanner = new Html5QrcodeScanner(
-          "form-reader",
-          { 
-            fps: 10, 
-            qrbox: { width: 250, height: 150 },
-            formatsToSupport: [ 
-              Html5QrcodeSupportedFormats.CODE_128,
-              Html5QrcodeSupportedFormats.CODE_39,
-              Html5QrcodeSupportedFormats.EAN_13
-            ]
-          },
-          false
-        );
-        
-        scanner.render((text) => {
-          setFormData(prev => ({ ...prev, barcode: text.toUpperCase() }));
-          setIsFormScanning(false);
-          scanner.clear();
-        }, (err) => {});
-        
-        formScannerRef.current = scanner;
-      }, 100);
-    } else {
-      if (formScannerRef.current) {
-        formScannerRef.current.clear().catch(() => {});
-        formScannerRef.current = null;
-      }
-    }
-  }, [isFormScanning]);
-
-  useEffect(() => {
     if (showModal) {
       setTimeout(() => {
         nameInputRef.current?.focus();
       }, 300);
-    } else {
-      setIsFormScanning(false);
     }
   }, [showModal]);
 
@@ -958,31 +918,15 @@ const Inventory: React.FC = () => {
                               onChange={e => setFormData({...formData, barcode: e.target.value.toUpperCase()})}
                             />
                           </div>
+
                           <button
                             type="button"
-                            onClick={() => setIsFormScanning(!isFormScanning)}
-                            className={`p-3 rounded-xl border transition-all ${isFormScanning ? 'bg-red-500 text-white border-red-600' : 'bg-primary/10 text-primary border-primary/20 hover:bg-primary/20'}`}
-                            title="Scan via Kamera"
+                            onClick={generateBarcode}
+                            className="w-full text-[9px] font-black uppercase tracking-widest text-primary bg-primary/10 hover:bg-primary/20 border border-primary/30 rounded-lg py-1.5 transition-all flex items-center justify-center gap-1.5"
                           >
-                            {isFormScanning ? <X className="w-5 h-5" /> : <Camera className="w-5 h-5" />}
+                            <Barcode className="w-3 h-3" /> Auto Generate Barcode
                           </button>
                         </div>
-                        
-                        {isFormScanning && (
-                          <div className="mt-2 bg-zinc-900 rounded-2xl overflow-hidden border-2 border-primary/30 relative">
-                            <div id="form-reader" className="w-full h-40"></div>
-                            <div className="absolute inset-0 pointer-events-none border-[20px] border-black/40"></div>
-                            <div className="absolute top-2 left-1/2 -translate-x-1/2 bg-primary text-white text-[8px] font-black px-2 py-0.5 rounded-full uppercase">Kamera Aktif</div>
-                          </div>
-                        )}
-
-                        <button
-                          type="button"
-                          onClick={generateBarcode}
-                          className="w-full text-[9px] font-black uppercase tracking-widest text-primary bg-primary/10 hover:bg-primary/20 border border-primary/30 rounded-lg py-1.5 transition-all flex items-center justify-center gap-1.5"
-                        >
-                          <Barcode className="w-3 h-3" /> Auto Generate Barcode
-                        </button>
                       </div>
                       <div className="relative group">
                         <Tag className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground group-focus-within:text-primary" />

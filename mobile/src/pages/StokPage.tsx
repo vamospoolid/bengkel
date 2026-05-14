@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Search, Camera, X, Package, Plus, Minus, CheckCircle2, Loader2, AlertTriangle, ScanLine } from 'lucide-react';
+import { Search, Camera, X, Package, Plus, Minus, CheckCircle2, Loader2, AlertTriangle, ScanLine, History } from 'lucide-react';
 import { Html5Qrcode } from 'html5-qrcode';
+import { useNavigate } from 'react-router-dom';
 import api from '../api';
 
 interface Product {
@@ -18,6 +19,7 @@ export const StokPage: React.FC = () => {
   const [products, setProducts] = useState<Product[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [search, setSearch] = useState('');
+  const navigate = useNavigate();
   const [isScanning, setIsScanning] = useState(false);
   const [foundProduct, setFoundProduct] = useState<Product | null>(null);
   const [stockDelta, setStockDelta] = useState(0);
@@ -126,9 +128,14 @@ export const StokPage: React.FC = () => {
       <div className="sticky top-0 z-20 bg-background/95 backdrop-blur-md border-b border-border/50 px-4 pt-4 pb-3 space-y-3">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-xl font-black uppercase tracking-tight">Stok Barang</h1>
+            <h1 className="text-xl font-black uppercase tracking-tight text-gradient">Stok Barang</h1>
             <p className="text-[10px] text-muted-foreground">{products.length} produk • {lowStock > 0 && <span className="text-red-400 font-bold">{lowStock} hampir habis</span>}</p>
           </div>
+          <button onClick={() => navigate('/stock-logs')}
+            className="flex items-center gap-2 px-4 py-2 bg-muted rounded-xl text-[10px] font-black uppercase tracking-widest text-muted-foreground hover:text-primary transition-all active:scale-95 border border-white/5">
+            <History className="w-4 h-4" />
+            Riwayat
+          </button>
         </div>
 
         {/* Search + Scan */}

@@ -1,0 +1,13 @@
+{
+  "appId": "com.jakartamotor.pos",
+  "appName": "Jakarta Motor",
+  "webDir": "dist",
+  "bundledWebRuntime": false,
+  "server": {
+    "cleartext": true,
+    "androidScheme": "http"
+  },
+  "android": {
+    "allowMixedContent": true
+  }
+}

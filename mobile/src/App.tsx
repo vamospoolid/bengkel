@@ -1,12 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Link, useLocation } from 'react-router-dom';
-import { Home, Wrench, Package, User, AlertCircle, Wifi, Settings as SettingsIcon, X, DollarSign, TrendingUp, TrendingDown, UserCheck, ArrowRight, Plus, Loader2 } from 'lucide-react';
+import { Home, Wrench, Package, User, AlertCircle, Wifi, Settings as SettingsIcon, X, DollarSign, TrendingUp, TrendingDown, UserCheck, ArrowRight, Plus, RotateCcw, Loader2 } from 'lucide-react';
 import api, { updateApiBaseUrl } from './api';
 import { Servis } from './pages/Servis';
 import { StokPage } from './pages/StokPage';
 import { FinancePage } from './pages/FinancePage';
 import { ShoppingListPage } from './pages/ShoppingListPage';
 import { PurchasePage } from './pages/PurchasePage';
+import { StockLogsPage } from './pages/StockLogsPage';
+import { CatalogPage } from './pages/CatalogPage';
+import { OpnamePage } from './pages/OpnamePage';
 
 // ─── Bottom Nav ────────────────────────────────────────────────────────────────
 const BottomNav = () => {
@@ -14,27 +17,45 @@ const BottomNav = () => {
   const tabs = [
     { path: '/',       label: 'Beranda', icon: Home },
     { path: '/servis', label: 'Servis',  icon: Wrench },
-    { path: '/finance', label: 'Keuangan', icon: DollarSign },
-    { path: '/stok',   label: 'Stok',    icon: Package },
-    { path: '/akun',   label: 'Akun',    icon: User },
+    { path: '/catalog', label: 'Input',   icon: Plus, isAction: true },
+    { path: '/finance', label: 'Finance', icon: DollarSign },
+    { path: '/stok',    label: 'Gudang',  icon: Package },
   ];
+
   return (
-    <div className="fixed bottom-4 left-4 right-4 z-50 glass-card rounded-[2.5rem] safe-area-bottom px-2">
-      <div className="flex justify-around items-center py-3">
-        {tabs.map(tab => {
-          const active = location.pathname === tab.path;
-          const Icon = tab.icon;
-          return (
-            <Link key={tab.path} to={tab.path}
-              className={`flex flex-col items-center gap-1.5 px-4 py-2 rounded-2xl transition-all duration-300 ${active ? 'text-primary scale-110' : 'text-muted-foreground opacity-60'}`}>
-              <Icon className="w-6 h-6" strokeWidth={active ? 2.5 : 1.8} />
-              <span className={`text-[8px] font-black uppercase tracking-widest ${active ? 'text-primary' : 'text-muted-foreground'}`}>
-                {tab.label}
-              </span>
-              {active && <div className="w-1 h-1 rounded-full bg-primary animate-pulse" />}
-            </Link>
-          );
-        })}
+    <div className="fixed bottom-0 left-0 right-0 z-50">
+      <div className="bg-background/80 backdrop-blur-2xl border-t border-white/5 safe-area-bottom">
+        <div className="flex justify-around items-end px-2 pb-2 pt-1">
+          {tabs.map(tab => {
+            const active = location.pathname === tab.path;
+            const Icon = tab.icon;
+            
+            if (tab.isAction) {
+              return (
+                <Link key={tab.path} to={tab.path}
+                  className="flex flex-col items-center -translate-y-4">
+                  <div className={`w-16 h-16 rounded-full flex items-center justify-center shadow-2xl transition-all duration-500 ${active ? 'bg-primary rotate-90 scale-110' : 'orange-gradient'}`}>
+                    <Icon className="w-8 h-8 text-white" strokeWidth={3} />
+                  </div>
+                  <span className={`text-[8px] font-black uppercase tracking-widest mt-1.5 ${active ? 'text-primary' : 'text-muted-foreground'}`}>
+                    {tab.label}
+                  </span>
+                </Link>
+              );
+            }
+
+            return (
+              <Link key={tab.path} to={tab.path}
+                className={`flex flex-col items-center gap-1.5 px-3 py-3 transition-all duration-300 ${active ? 'text-primary' : 'text-muted-foreground opacity-50'}`}>
+                <Icon className="w-5 h-5" strokeWidth={active ? 2.5 : 1.5} />
+                <span className={`text-[8px] font-black uppercase tracking-widest ${active ? 'text-primary' : ''}`}>
+                  {tab.label}
+                </span>
+                {active && <div className="w-1 h-1 rounded-full bg-primary absolute top-1" />}
+              </Link>
+            );
+          })}
+        </div>
       </div>
     </div>
   );
@@ -144,13 +165,26 @@ const Dashboard = ({ user }: { user: any }) => {
         ))}
       </div>
 
-      {/* Quick Actions */}
+      {/* Unified Quick Actions */}
       <div className="space-y-4">
-        <p className="text-[10px] font-black uppercase tracking-[0.3em] text-muted-foreground ml-1">Aksi Prioritas</p>
-        <div className="grid grid-cols-1 gap-3">
-          <Link to="/servis" className="flex items-center justify-between p-5 glass-card rounded-[2rem] active:scale-[0.98] transition-all group">
+        <p className="text-[10px] font-black uppercase tracking-[0.3em] text-muted-foreground ml-1">Aksi Cepat</p>
+        <div className="glass-card rounded-[2.5rem] overflow-hidden border border-white/5 shadow-2xl">
+          <Link to="/catalog" className="flex items-center justify-between p-6 active:bg-white/5 transition-all group border-b border-white/5">
             <div className="flex items-center gap-4">
-              <div className="w-12 h-12 bg-primary/10 rounded-2xl flex items-center justify-center text-primary group-hover:scale-110 transition-all">
+              <div className="w-12 h-12 bg-primary/20 rounded-2xl flex items-center justify-center text-primary group-hover:scale-110 transition-all">
+                <Plus className="w-6 h-6" />
+              </div>
+              <div>
+                <p className="font-black text-sm uppercase tracking-tight">Pendataan Barang Baru</p>
+                <p className="text-[10px] text-muted-foreground font-medium">Input katalog & generate QR</p>
+              </div>
+            </div>
+            <ArrowRight className="w-5 h-5 text-muted-foreground group-hover:text-primary transition-all" />
+          </Link>
+
+          <Link to="/servis" className="flex items-center justify-between p-6 active:bg-white/5 transition-all group border-b border-white/5">
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 bg-blue-500/10 rounded-2xl flex items-center justify-center text-blue-500 group-hover:scale-110 transition-all">
                 <Wrench className="w-6 h-6" />
               </div>
               <div>
@@ -158,33 +192,46 @@ const Dashboard = ({ user }: { user: any }) => {
                 <p className="text-[10px] text-muted-foreground font-medium">Kelola unit masuk & mekanik</p>
               </div>
             </div>
-            <ArrowRight className="w-5 h-5 text-muted-foreground group-hover:text-primary transition-all" />
+            <ArrowRight className="w-5 h-5 text-muted-foreground group-hover:text-blue-500 transition-all" />
           </Link>
-          
-          <Link to="/finance" className="flex items-center justify-between p-5 glass-card rounded-[2rem] active:scale-[0.98] transition-all group">
+
+          <Link to="/finance" className="flex items-center justify-between p-6 active:bg-white/5 transition-all group border-b border-white/5">
             <div className="flex items-center gap-4">
               <div className="w-12 h-12 bg-green-500/10 rounded-2xl flex items-center justify-center text-green-500 group-hover:scale-110 transition-all">
                 <DollarSign className="w-6 h-6" />
               </div>
               <div>
-                <p className="font-black text-sm uppercase tracking-tight">Input Keuangan</p>
-                <p className="text-[10px] text-muted-foreground font-medium">Catat pengeluaran & pemasukan</p>
+                <p className="font-black text-sm uppercase tracking-tight">Catat Keuangan</p>
+                <p className="text-[10px] text-muted-foreground font-medium">Pengeluaran & pemasukan</p>
               </div>
             </div>
             <ArrowRight className="w-5 h-5 text-muted-foreground group-hover:text-green-500 transition-all" />
           </Link>
 
-          <Link to="/purchase" className="flex items-center justify-between p-5 glass-card rounded-[2rem] border-primary/20 bg-primary/5 active:scale-[0.98] transition-all group">
+          <Link to="/purchase" className="flex items-center justify-between p-6 active:bg-white/5 transition-all group border-b border-white/5">
             <div className="flex items-center gap-4">
-              <div className="w-12 h-12 bg-primary/20 rounded-2xl flex items-center justify-center text-primary group-hover:scale-110 transition-all">
-                <Plus className="w-6 h-6" />
+              <div className="w-12 h-12 bg-orange-500/10 rounded-2xl flex items-center justify-center text-orange-500 group-hover:scale-110 transition-all">
+                <Plus className="w-4 h-4" />
               </div>
               <div>
                 <p className="font-black text-sm uppercase tracking-tight">Input Pembelian</p>
                 <p className="text-[10px] text-muted-foreground font-medium">Tambah stok dari nota supplier</p>
               </div>
             </div>
-            <ArrowRight className="w-5 h-5 text-primary transition-all" />
+            <ArrowRight className="w-5 h-5 text-muted-foreground group-hover:text-orange-500 transition-all" />
+          </Link>
+
+          <Link to="/opname" className="flex items-center justify-between p-6 active:bg-white/5 transition-all group">
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 bg-purple-500/10 rounded-2xl flex items-center justify-center text-purple-500 group-hover:scale-110 transition-all">
+                <RotateCcw className="w-5 h-5" />
+              </div>
+              <div>
+                <p className="font-black text-sm uppercase tracking-tight">Stok Opname</p>
+                <p className="text-[10px] text-muted-foreground font-medium">Audit fisik gudang (Scan & Count)</p>
+              </div>
+            </div>
+            <ArrowRight className="w-5 h-5 text-muted-foreground group-hover:text-purple-500 transition-all" />
           </Link>
         </div>
       </div>
@@ -312,7 +359,7 @@ const Login = ({ onLogin }: { onLogin: (u: any) => void }) => {
                   <label className="text-[9px] font-black uppercase tracking-widest text-muted-foreground ml-2 block">Endpoint IP</label>
                   <input 
                     type="text" 
-                    placeholder="192.168.1.xxx"
+                    placeholder="173.212.243.240:3002"
                     className="w-full bg-zinc-900/50 border border-white/10 rounded-2xl px-6 py-4 font-mono font-bold text-lg focus:ring-2 focus:ring-primary/50 outline-none text-primary"
                     value={tempIp}
                     onChange={e => setTempIp(e.target.value)}
@@ -361,11 +408,14 @@ function App() {
   return (
     <Router>
       <div className="min-h-screen bg-background text-foreground font-sans">
-        <main className="flex-1">
+        <main className="flex-1 pb-20">
           <Routes>
             <Route path="/"       element={<Dashboard user={user} />} />
             <Route path="/servis" element={<Servis />} />
             <Route path="/stok"   element={<StokPage />} />
+            <Route path="/catalog" element={<CatalogPage />} />
+            <Route path="/opname" element={<OpnamePage />} />
+            <Route path="/stock-logs" element={<StockLogsPage />} />
             <Route path="/purchase" element={<PurchasePage />} />
             <Route path="/finance" element={<FinancePage />} />
             <Route path="/shopping-list" element={<ShoppingListPage />} />

@@ -126,7 +126,7 @@ const PurchaseSupplier: React.FC = () => {
     setItems(prev => prev.filter(i => i.productId !== id));
   };
 
-  const updateItem = (id: string, field: keyof PurchaseItem, value: any) => {
+  const updateItem = (id: string, field: keyof PurchaseItem, value: string | number) => {
     setItems(prev => {
       const newItems = prev.map(i => i.productId === id ? { ...i, [field]: value } : i);
       return newItems;

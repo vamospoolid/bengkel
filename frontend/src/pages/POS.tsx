@@ -656,6 +656,8 @@ const POS: React.FC = () => {
             price: item.price
           })),
           totalAmount: tx.totalAmount || total,
+          tax: tx.tax !== undefined ? tx.tax : tax,
+          discount: tx.discount !== undefined ? tx.discount : discount,
           customer: tx.customer || currentCustomer || { name: 'UMUM' },
           vehicle: tx.vehicle || (pulledWorkOrder?.vehicle || (plateNumber ? { plateNumber } : null))
         };

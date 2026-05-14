@@ -83,8 +83,8 @@ const SingleLabel: React.FC<{ product: Product; size: string; workshopName: stri
       <p style={{ fontSize: `${cfg.fontSize - 1}px`, fontFamily: 'Arial, sans-serif', color: '#888', letterSpacing: '0.1em', textTransform: 'uppercase', margin: 0, lineHeight: 1 }}>
         {workshopName}
       </p>
-      <p style={{ fontSize: `${cfg.fontSize + 1}px`, fontFamily: 'Arial, sans-serif', color: '#111', fontWeight: '800', margin: 0, textAlign: 'center', lineHeight: 1.1, maxWidth: '100%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', textTransform: 'uppercase' }}>
-        {product.name.length > 20 ? product.name.substring(0, 20) + '…' : product.name}
+      <p style={{ fontSize: `${cfg.fontSize + 1}px`, fontFamily: 'Arial, sans-serif', color: '#111', fontWeight: '800', margin: 0, textAlign: 'center', lineHeight: 1.1, maxWidth: '100%', overflow: 'hidden', textTransform: 'uppercase', display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical' }}>
+        {product.name}
       </p>
       <svg ref={svgRef} style={{ maxWidth: '100%', display: 'block' }} />
       {showPrice && (
@@ -516,8 +516,8 @@ const SingleLabelPrint: React.FC<{ product: Product; size: string; workshopName:
       <p style={{ fontSize: `${cfg.fontSize - 1}px`, fontFamily: 'Arial, sans-serif', color: '#000', letterSpacing: '0.1em', textTransform: 'uppercase', margin: 0, fontWeight: 'bold' }}>
         {workshopName}
       </p>
-      <p style={{ fontSize: `${cfg.fontSize + 2}px`, fontFamily: 'Arial, sans-serif', color: '#000', fontWeight: '900', margin: 0, textAlign: 'center', lineHeight: 1, maxWidth: '100%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', textTransform: 'uppercase' }}>
-        {product.name.length > 18 ? product.name.substring(0, 18) + '…' : product.name}
+      <p style={{ fontSize: `${cfg.fontSize + 2}px`, fontFamily: 'Arial, sans-serif', color: '#000', fontWeight: '900', margin: 0, textAlign: 'center', lineHeight: 1, maxWidth: '100%', overflow: 'hidden', textTransform: 'uppercase', display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical' }}>
+        {product.name}
       </p>
       {imgData ? (
         <img src={imgData} style={{ maxWidth: '95%', height: 'auto', display: 'block' }} alt="barcode" />

@@ -2,7 +2,7 @@ import React from 'react';
 import { 
   LayoutDashboard, Package, ShoppingCart, Users as UsersIcon, 
   BarChart3, LogOut, Wrench, History, Settings, 
-  TrendingUp, TrendingDown, FileText, Activity, UserSquare, RefreshCw, Truck, PlusCircle, UserCheck, Camera
+  TrendingUp, TrendingDown, FileText, Activity, UserSquare, RefreshCw, Truck, PlusCircle, UserCheck
 } from 'lucide-react';
 
 interface LayoutProps {
@@ -45,7 +45,6 @@ const Layout: React.FC<LayoutProps> = ({ children, activePage, setActivePage, us
     
     // Inventory & Suppliers
     { id: 'inventory', label: 'Data Barang', icon: Package },
-    { id: 'mobile-scanner', label: 'Mobile Scanner', icon: Camera },
     { id: 'stock-logs', label: 'Kartu Stok', icon: Activity },
     { id: 'restock', label: 'Restok Cepat', icon: RefreshCw, adminOnly: true },
     { id: 'suppliers', label: 'Data Supplier', icon: Truck, adminOnly: true },

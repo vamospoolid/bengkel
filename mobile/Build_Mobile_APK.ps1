@@ -3,6 +3,9 @@
 
 $ErrorActionPreference = "Stop"
 
+# Pindah ke direktori tempat script ini berada (folder mobile)
+Set-Location -Path $PSScriptRoot
+
 Write-Host "`n[1/5] Memeriksa dependensi Capacitor..." -ForegroundColor Cyan
 if (!(Test-Path "node_modules/@capacitor/cli")) {
     Write-Host "Menginstall Capacitor CLI & Core..." -ForegroundColor Gray
