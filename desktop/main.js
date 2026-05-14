@@ -105,8 +105,8 @@ ipcMain.handle('print-raw', async (event, printerName, transaction, workshop) =>
       
       const printer = new ThermalPrinter({
         type: PrinterTypes.EPSON, // POS80 biasanya kompatibel dengan EPSON
-        interface: `printer:${cleanPrinterName}`,
-        characterSet: CharacterSet.SLOVENIA,
+        interface: 'tcp://127.0.0.1:9000',
+        characterSet: 'PC858_EURO',
         removeSpecialCharacters: false,
         lineCharacter: "=",
         width: 42 // Standar 80mm

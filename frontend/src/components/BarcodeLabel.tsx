@@ -16,20 +16,22 @@ interface Props {
 }
 
 const BarcodeLabel: React.FC<Props> = ({ product, products = [], onClose }) => {
-  const [cols, setCols] = useState<2 | 3>(2);
+  const [cols, setCols] = useState<2 | 3>(parseInt(localStorage.getItem('label_columns') || '2') as 2 | 3);
   const [qty, setQty] = useState(1);
   
   const displayProducts = product ? Array(qty).fill(product) : products;
 
-  const handlePrint = () => {
+  const handlePrint = async () => {
     const printContent = document.getElementById('barcode-print-area')?.innerHTML;
     if (!printContent) return;
     
     // Kirim ke Electron untuk print presisi
-    if (window.electron) {
-      window.electron.ipcRenderer.invoke('print-silent', { 
-        deviceName: '', // Default label printer
-        pageSize: cols === 3 ? { width: 105000, height: 15000 } : { width: 70000, height: 15000 }
+    if ((window as any).electron) {
+      const labelPrinterName = localStorage.getItem('label_printer') || '';
+      try {
+        await (window as any).electron.printSilent({ 
+          deviceName: labelPrinterName, // Gunakan printer label dari setting
+          pageSize: cols === 3 ? { width: 105000, height: 15000 } : { width: 70000, height: 15000 }
       }, `
         <html>
           <style>
@@ -46,6 +48,10 @@ const BarcodeLabel: React.FC<Props> = ({ product, products = [], onClose }) => {
           </body>
         </html>
       `);
+      } catch (err) {
+        console.error('Label print failed', err);
+        alert('Gagal mencetak label. Pastikan printer menyala.');
+      }
     } else {
       window.print();
     }
