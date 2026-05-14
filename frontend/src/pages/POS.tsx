@@ -528,9 +528,9 @@ const POS: React.FC = () => {
         await (window as any).electron.invoke('print-silent', { 
           silent: true, 
           deviceName: defaultPrinter,
-          pageSize: { width: 80000, height: 200000 },
+          pageSize: { width: 80000, height: 500000 }, // 50cm height to avoid multi-page cuts
           margins: { marginType: 'none' }
-        }, `<html><head><style>@page { margin: 0; } body { margin: 0; padding: 0; font-family: monospace; }</style></head><body>${html}</body></html>`);
+        }, `<html><head><style>@page { margin: 0; } body { margin: 0; padding: 0; font-family: monospace; } .receipt-container { padding-bottom: 50px; }</style></head><body><div class="receipt-container">${html}</div></body></html>`);
         return;
       } catch (err) {
         console.error('Electron silent print failed', err);
