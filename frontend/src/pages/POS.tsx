@@ -311,6 +311,31 @@ const POS: React.FC = () => {
     }));
   };
 
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      // Find matching part by EXACT barcode match
+      const matchingPart = parts.find(p => p.barcode === searchTerm.trim() || p.id === searchTerm.trim());
+      
+      if (matchingPart) {
+        addToCart(matchingPart, 'part');
+        setSearchTerm(''); // Clear for next scan
+        toast.success(`Ditambahkan: ${matchingPart.name}`, { duration: 1000 });
+      } else {
+        // Fallback: If only 1 result in the current filter, add that one
+        const filteredParts = parts.filter(p => 
+          p.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+          p.barcode.includes(searchTerm)
+        );
+        
+        if (filteredParts.length === 1) {
+          addToCart(filteredParts[0], 'part');
+          setSearchTerm('');
+          toast.success(`Ditambahkan: ${filteredParts[0].name}`, { duration: 1000 });
+        }
+      }
+    }
+  };
+
   const addToCart = (item: any, type: 'part' | 'service') => {
     setCart(prev => {
       const existing = prev.find(i => i.id === item.id);
@@ -695,6 +720,7 @@ const POS: React.FC = () => {
               className="w-full bg-card border-2 border-border/50 rounded-[2rem] pl-16 pr-6 py-5 font-bold focus:outline-none focus:border-primary focus:ring-8 focus:ring-primary/5 transition-all text-lg shadow-sm"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
+              onKeyDown={handleKeyDown}
             />
           </div>
           
