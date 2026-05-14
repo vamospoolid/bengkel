@@ -805,27 +805,33 @@ const POS: React.FC = () => {
             )}
           </div>
         </div>
-      </div>
-
-      {/* RIGHT PANEL: CART */}
-      <div className="w-96 flex flex-col bg-card border border-border rounded-[3rem] p-8 shadow-xl shrink-0">
-        <div className="flex items-center gap-4 mb-8">
-          <div className="p-3 bg-primary/10 rounded-2xl text-primary"><ShoppingCart className="w-6 h-6" /></div>
-          <div>
-            <h3 className="font-black text-xl tracking-tight leading-none">Pesanan Saat Ini</h3>
-            <p className="text-[10px] text-muted-foreground font-black uppercase tracking-widest mt-1 opacity-50 italic">Items In Basket</p>
-          </div>
+      </div>      {/* RIGHT PANEL: CART (RECEIPT STYLE) */}
+      <div className="w-[450px] bg-white dark:bg-zinc-900 rounded-[2.5rem] shadow-2xl p-8 flex flex-col border border-border/50 relative overflow-hidden shrink-0">
+        {/* Receipt Top Pattern */}
+        <div className="absolute top-0 left-0 right-0 h-1.5 flex gap-1 px-4">
+          {Array.from({length: 20}).map((_, i) => (
+            <div key={i} className="flex-1 h-full bg-primary/20 rounded-b-full" />
+          ))}
         </div>
 
-        <div className="space-y-6 flex-1 flex flex-col min-h-0">
-          {/* Customer Selection */}
+        <div className="mb-6 shrink-0">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-xl font-black uppercase tracking-tighter">Pesanan Saat Ini</h3>
+            <button 
+              onClick={() => setCart([])} 
+              className="text-[10px] font-black text-red-500 hover:bg-red-500/10 px-3 py-1 rounded-full transition-all uppercase tracking-widest"
+            >
+              Hapus Semua
+            </button>
+          </div>
+          
           <div className="space-y-4 shrink-0">
             <div className="flex bg-muted p-1 rounded-xl border border-border/50">
               {(['Umum', 'Grosir', 'Bengkel'] as const).map(type => (
                 <button 
                   key={type} 
                   onClick={() => handleCustomerTypeChange(type)}
-                  className={`flex-1 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all \${customerType === type ? 'bg-card text-primary shadow-sm' : 'text-muted-foreground'}`}
+                  className={`flex-1 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${customerType === type ? 'bg-card text-primary shadow-sm' : 'text-muted-foreground'}`}
                 >
                   {type}
                 </button>
@@ -833,19 +839,20 @@ const POS: React.FC = () => {
             </div>
 
             <div className="flex items-center gap-2 px-1">
-              <input type="checkbox" checked={onlyShopping} onChange={(e) => setOnlyShopping(e.target.checked)} className="w-3 h-3 accent-primary" />
-              <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest cursor-pointer">Hanya Belanja (Tanpa Plat)</label>
+              <input type="checkbox" id="only-shop" checked={onlyShopping} onChange={(e) => setOnlyShopping(e.target.checked)} className="w-3 h-3 accent-primary" />
+              <label htmlFor="only-shop" className="text-[10px] font-black text-muted-foreground uppercase tracking-widest cursor-pointer">Hanya Belanja (Tanpa Plat)</label>
             </div>
 
             {!onlyShopping && (
               <div className="space-y-3">
                 <div className="relative">
+                  <Wrench className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-primary" />
                   <input 
                     type="text" 
-                    placeholder="PLAT NOMOR" 
-                    className="w-full bg-muted border border-border rounded-2xl px-6 py-4 font-mono font-black text-center text-lg tracking-widest focus:outline-none focus:ring-4 focus:ring-primary/5 transition-all"
-                    value={plateNumber}
-                    onChange={(e) => setPlateNumber(e.target.value.toUpperCase())}
+                    readOnly
+                    value={selectedPlate}
+                    placeholder="PILIH DARI BENGKEL" 
+                    className="w-full bg-primary/5 border border-primary/20 rounded-2xl pl-12 pr-12 py-4 font-black uppercase text-xs focus:outline-none"
                   />
                   <button onClick={pullFromWorkshop} className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-primary transition-colors">
                     {isSearching ? <Loader2 className="w-4 h-4 animate-spin" /> : <Wrench className="w-4 h-4" />}
@@ -893,152 +900,230 @@ const POS: React.FC = () => {
               </div>
             )}
           </div>
-
-          <div className="flex-1 overflow-y-auto -mx-2 px-2 space-y-4 custom-scrollbar min-h-0 py-2">
-            {cart.length === 0 ? (
-              <div className="h-full flex flex-col items-center justify-center text-muted-foreground text-center opacity-40 py-10">
-                <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mb-4"><ShoppingCart className="w-6 h-6" /></div>
-                <p className="text-[10px] font-black uppercase tracking-[0.2em]">Keranjang Kosong</p>
-              </div>
-            ) : (
-              cart.map(item => (
-                <div key={item.id} className="flex flex-col gap-2 p-3 bg-card border border-border/50 rounded-2xl hover:border-primary/30 transition-all group relative overflow-hidden shadow-sm">
-                  <div className="flex justify-between items-start gap-2 relative z-10">
-                    <div className="flex-1 min-w-0">
-                      <h5 className="text-[10px] font-black leading-tight group-hover:text-primary transition-colors line-clamp-1 truncate uppercase">{item.name}</h5>
-                      <div className="flex items-center gap-2 mt-0.5">
-                        <span className={`text-[7px] font-black uppercase tracking-widest px-1 py-0.5 rounded ${
-                          item.type === 'part' ? 'bg-primary/10 text-primary' : 'bg-blue-500/10 text-blue-500'
-                        }`}>
-                          {item.type === 'part' ? 'Suku Cadang' : 'Layanan Jasa'}
-                        </span>
-                        {item.type === 'part' && (
-                          <span className="text-[7px] font-black text-primary/60 uppercase tracking-widest">{item.priceTier}</span>
-                        )}
-                      </div>
-                    </div>
-                    <button onClick={() => setCart(prev => prev.filter(i => i.id !== item.id))} className="text-muted-foreground hover:text-red-500 transition-colors p-1"><Trash2 className="w-3 h-3" /></button>
-                  </div>
-                  
-                  <div className="flex justify-between items-center relative z-10">
-                    <div className="flex items-center gap-1.5 bg-muted rounded-xl p-1 border border-border/30">
-                      <button onClick={() => updateQuantity(item.id, -1)} className="w-5 h-5 flex items-center justify-center bg-card rounded-lg hover:text-primary transition-all active:scale-90"><Minus className="w-2 h-2" /></button>
-                      <span className="w-4 text-center font-black text-[10px]">{item.quantity}</span>
-                      <button onClick={() => updateQuantity(item.id, 1)} className="w-5 h-5 flex items-center justify-center bg-card rounded-lg hover:text-primary transition-all active:scale-90"><Plus className="w-2 h-2" /></button>
-                    </div>
-
-                    <div className="text-right">
-                      {item.isMechanicFault ? (
-                        <p className="text-[9px] font-black text-red-500 uppercase tracking-tighter">FREE (RUSAK)</p>
-                      ) : (
-                        <p className="text-[11px] font-black text-primary">Rp {(item.price * item.quantity).toLocaleString()}</p>
-                      )}
-                    </div>
-                  </div>
-
-                  {item.type === 'service' && (
-                    <div className="relative z-10">
-                      <select 
-                        value={item.mechanicId || ''} 
-                        onChange={(e) => updateMechanic(item.id, e.target.value)} 
-                        className="w-full bg-muted border border-border rounded-lg text-[8px] font-black px-2 py-1.5 outline-none focus:border-primary appearance-none truncate"
-                      >
-                        <option value="">-- Mekanik --</option>
-                        {mechanics.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
-                      </select>
-                    </div>
-                  )}
-                  
-                  {item.type === 'part' && (
-                    <div className="flex justify-between items-center mt-0.5 pt-2 border-t border-border/30 relative z-10">
-                      <div className="flex gap-1">
-                        {(['normal', 'grosir', 'bengkel'] as const).map(tier => (
-                          <button 
-                            key={tier} 
-                            onClick={() => updatePriceTier(item.id, tier)}
-                            className={`w-4 h-4 flex items-center justify-center rounded-md text-[7px] font-black transition-all ${item.priceTier === tier ? 'bg-primary text-white shadow-md' : 'bg-muted text-muted-foreground hover:bg-primary/10'}`}
-                          >
-                            {tier[0].toUpperCase()}
-                          </button>
-                        ))}
-                      </div>
-                      <button 
-                        onClick={() => toggleMechanicFault(item.id)}
-                        className={`p-1 rounded-md transition-all ${item.isMechanicFault ? 'bg-red-500 text-white shadow-md' : 'bg-muted text-muted-foreground hover:bg-red-500/10'}`}
-                        title="Free (Kesalahan Mekanik)"
-                      >
-                        <AlertTriangle className="w-2.5 h-2.5" />
-                      </button>
-                    </div>
-                  )}
-                </div>
-              ))
-            )}
-          </div>
-
-          <div className="pt-6 border-t border-border space-y-4 shrink-0">
-            <div className="space-y-2">
-              <div className="flex justify-between items-center text-xs font-bold text-muted-foreground uppercase tracking-widest px-1">
-                <span>Subtotal</span>
-                <span>Rp {subtotal.toLocaleString()}</span>
-              </div>
-              <div className="flex justify-between items-center pt-2">
-                <span className="text-sm font-black uppercase tracking-tight">Total Tagihan</span>
-                <span className="text-2xl font-black text-primary">Rp {total.toLocaleString()}</span>
-              </div>
-            </div>
-
-            <button 
-              onClick={handleCheckout} 
-              disabled={cart.length === 0 || isCheckoutProcessing}
-              className="w-full py-5 bg-primary text-white rounded-[2rem] font-black text-lg shadow-2xl shadow-primary/30 hover:scale-[1.02] active:scale-95 disabled:opacity-50 disabled:scale-100 transition-all flex items-center justify-center gap-3 uppercase tracking-widest"
-            >
-              {isCheckoutProcessing ? <Loader2 className="w-6 h-6 animate-spin" /> : 'BAYAR SEKARANG'}
-            </button>
-          </div>
         </div>
-      </div>
+
+        <div className="flex-1 overflow-y-auto -mx-8 px-8 custom-scrollbar min-h-0">
+          {cart.length === 0 ? (
+            <div className="h-full flex flex-col items-center justify-center text-muted-foreground text-center opacity-40 py-20">
+              <ShoppingCart className="w-12 h-12 mb-4" />
+              <p className="text-[10px] font-black uppercase tracking-[0.2em]">Belum Ada Barang</p>
+            </div>
+          ) : (
+            <table className="w-full border-collapse">
+              <thead>
+                <tr className="border-b-2 border-dashed border-border/50">
+                  <th className="text-left py-2 text-[9px] font-black text-muted-foreground uppercase tracking-widest w-1/2">Barang/Jasa</th>
+                  <th className="text-center py-2 text-[9px] font-black text-muted-foreground uppercase tracking-widest">Qty</th>
+                  <th className="text-right py-2 text-[9px] font-black text-muted-foreground uppercase tracking-widest">Total</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-dashed divide-border/30">
+                {cart.map(item => (
+                  <tr key={item.id} className="group hover:bg-primary/[0.02]">
+                    <td className="py-3 pr-2">
+                      <div className="flex flex-col gap-1">
+                        <div className="flex items-start justify-between">
+                          <span className="text-[10px] font-black uppercase leading-tight line-clamp-2">{item.name}</span>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                           <span className={`text-[7px] font-black uppercase px-1 py-0.5 rounded ${item.type === 'part' ? 'bg-orange-500/10 text-orange-500' : 'bg-blue-500/10 text-blue-500'}`}>
+                              {item.type === 'part' ? 'PARTS' : 'SERVIS'}
+                           </span>
+                           {item.type === 'part' && (
+                             <div className="flex gap-0.5">
+                               {(['normal', 'grosir', 'bengkel'] as const).map(tier => (
+                                 <button 
+                                   key={tier} 
+                                   onClick={() => updatePriceTier(item.id, tier)}
+                                   className={`w-3.5 h-3.5 flex items-center justify-center rounded text-[6px] font-black border ${item.priceTier === tier ? 'bg-primary border-primary text-white' : 'bg-transparent border-border text-muted-foreground'}`}
+                                 >
+                                   {tier[0].toUpperCase()}
+                                 </button>
+                               ))}
+                             </div>
+                           )}
+                           {item.type === 'service' && (
+                             <select 
+                               value={item.mechanicId || ''} 
+                               onChange={(e) => updateMechanic(item.id, e.target.value)} 
+                               className="bg-muted border border-border rounded px-1 py-0.5 text-[7px] font-bold outline-none focus:border-primary max-w-[80px] truncate"
+                             >
+                               <option value="">-- Mekanik --</option>
+                               {mechanics.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
+                             </select>
+                           )}
+                        </div>
+                      </div>
+                    </td>
+                    <td className="py-3">
+                      <div className="flex flex-col items-center gap-1">
+                        <div className="flex items-center gap-1">
+                          <button onClick={() => updateQuantity(item.id, -1)} className="p-1 hover:text-red-500"><Minus className="w-2.5 h-2.5" /></button>
+                          <span className="text-[11px] font-black">{item.quantity}</span>
+                          <button onClick={() => updateQuantity(item.id, 1)} className="p-1 hover:text-primary"><Plus className="w-2.5 h-2.5" /></button>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="py-3 text-right">
+                      <div className="flex flex-col items-end gap-1">
+                        <button onClick={() => setCart(prev => prev.filter(i => i.id !== item.id))} className="opacity-0 group-hover:opacity-100 transition-all text-red-400 hover:text-red-600 mb-1">
+                          <Trash2 className="w-3 h-3" />
+                        </button>
+                        <span className={`text-[11px] font-black ${item.isMechanicFault ? 'text-red-500 line-through' : 'text-primary'}`}>
+                          Rp {(item.price * item.quantity).toLocaleString()}
+                        </span>
+                        {item.isMechanicFault && <span className="text-[8px] font-black text-red-500 uppercase tracking-tighter">FREE (RUSAK)</span>}
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+
+        <div className="pt-6 border-t-2 border-dashed border-border/50 space-y-4 shrink-0 bg-white dark:bg-zinc-900">
+          <div className="space-y-1.5">
+            <div className="flex justify-between items-center text-[10px] font-bold text-muted-foreground uppercase tracking-[0.2em]">
+              <span>SUBTOTAL</span>
+              <span>Rp {subtotal.toLocaleString()}</span>
+            </div>
+            <div className="flex justify-between items-center text-[10px] font-bold text-muted-foreground uppercase tracking-[0.2em]">
+              <span>TAX ({workshopProfile.taxRate}%)</span>
+              <span>Rp {Math.round(tax).toLocaleString()}</span>
+            </div>
+            <div className="flex justify-between items-center pt-3 border-t border-border/20">
+              <span className="text-sm font-black uppercase tracking-widest text-foreground">TOTAL AKHIR</span>
+              <span className="text-2xl font-black text-primary font-mono tracking-tighter">Rp {total.toLocaleString()}</span>
+            </div>
+          </div>
+
+          <button 
+            onClick={handleCheckout} 
+            disabled={cart.length === 0 || isCheckoutProcessing}
+            className="w-full py-5 bg-zinc-900 text-white rounded-[1.5rem] font-black text-sm shadow-2xl hover:bg-zinc-800 active:scale-95 disabled:opacity-50 disabled:scale-100 transition-all flex items-center justify-center gap-3 uppercase tracking-[0.3em]"
+          >
+            {isCheckoutProcessing ? <Loader2 className="w-5 h-5 animate-spin" /> : <><CreditCard className="w-5 h-5" /> PROSES PEMBAYARAN</>}
+          </button>
+        </div>
+      </div>v>
 
       {/* MODALS */}
       {showSuccessModal && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-8 bg-black/60 backdrop-blur-md animate-in fade-in duration-300">
-          <div className="bg-card w-full max-w-lg rounded-[3rem] p-10 shadow-2xl border border-border animate-in zoom-in duration-300">
-            <div className="text-center space-y-6">
-              <div className="w-24 h-24 bg-green-500/10 rounded-full flex items-center justify-center mx-auto mb-4 border-4 border-green-500/20">
-                <CheckCircle2 className="w-12 h-12 text-green-500" />
+          <div className="bg-card w-full max-w-2xl rounded-[3rem] p-10 shadow-2xl border border-border animate-in zoom-in duration-300 overflow-hidden flex flex-col max-h-[90vh]">
+            <div className="text-center shrink-0 mb-6">
+              <div className="w-16 h-16 bg-green-500/10 rounded-full flex items-center justify-center mx-auto mb-4 border-4 border-green-500/20">
+                <CheckCircle2 className="w-8 h-8 text-green-500" />
               </div>
-              <div>
-                <h2 className="text-3xl font-black uppercase tracking-tighter">Transaksi Berhasil!</h2>
-                <p className="text-muted-foreground font-medium mt-1">Pembayaran telah diterima & stok diperbarui.</p>
-              </div>
-              
-              <div className="p-6 bg-muted rounded-[2rem] border border-border/50 space-y-2">
-                <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Total Bayar</p>
-                <p className="text-4xl font-black text-primary tracking-tighter">Rp {total.toLocaleString()}</p>
-              </div>
+              <h2 className="text-2xl font-black uppercase tracking-tighter">Transaksi Berhasil!</h2>
+              <p className="text-muted-foreground text-xs font-medium mt-1">Pembayaran telah diterima & nota telah digenerate.</p>
+            </div>
+            
+            {/* Receipt Preview Area */}
+            <div className="flex-1 overflow-y-auto custom-scrollbar bg-white dark:bg-zinc-950 rounded-[2rem] border border-border/50 p-8 mb-6 shadow-inner">
+              <div id="receipt-print" className="bg-white text-black p-4 font-mono text-[10px] space-y-4">
+                <div className="text-center space-y-1">
+                  <h1 className="text-sm font-bold uppercase">{workshopProfile.name}</h1>
+                  <p>{workshopProfile.address}</p>
+                  <p>Telp: {workshopProfile.phone}</p>
+                  <div className="border-t border-dashed border-black my-2" />
+                </div>
 
-              <div className="flex flex-col gap-4 pt-4">
-                <button 
-                  onClick={() => handleSilentPrint(lastTransaction)}
-                  disabled={isPrinting}
-                  className="w-full py-5 bg-green-500 text-white rounded-2xl font-black shadow-xl shadow-green-500/30 hover:scale-105 transition-all flex items-center justify-center gap-3"
-                >
-                  {isPrinting ? <Loader2 className="w-6 h-6 animate-spin" /> : <><Printer className="w-6 h-6" /> CETAK ULANG (THERMAL)</>}
-                </button>
-                <button 
-                  onClick={handlePrint}
-                  className="w-full py-4 bg-primary/10 text-primary border border-primary/20 rounded-2xl font-black hover:bg-primary/20 transition-all flex items-center justify-center gap-2 text-xs"
-                >
-                  <FileText className="w-4 h-4" /> CETAK VIA BROWSER (A4/PDF)
-                </button>
-                <button 
-                  onClick={() => setShowSuccessModal(false)} 
-                  className="w-full py-5 bg-muted border border-border text-muted-foreground rounded-2xl font-black hover:bg-muted/70 transition-all"
-                >
-                  LANJUT KE TRANSAKSI BARU
-                </button>
+                <div className="space-y-1">
+                  <div className="flex justify-between">
+                    <span>No: {lastTransaction?.invoiceNo}</span>
+                    <span>{new Date(lastTransaction?.createdAt).toLocaleDateString('id-ID')}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Cust: {lastTransaction?.customer?.name || 'UMUM'}</span>
+                    <span>{new Date(lastTransaction?.createdAt).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}</span>
+                  </div>
+                  {lastTransaction?.vehicle?.plateNumber && (
+                    <div className="flex justify-between uppercase">
+                      <span>Plat: {lastTransaction.vehicle.plateNumber}</span>
+                      <span>{lastTransaction.vehicle.model || ''}</span>
+                    </div>
+                  )}
+                  <div className="border-t border-dashed border-black my-2" />
+                </div>
+
+                <table className="w-full text-left">
+                  <thead>
+                    <tr className="border-b border-dashed border-black">
+                      <th className="py-1">ITEM</th>
+                      <th className="text-center py-1">QTY</th>
+                      <th className="text-right py-1">TOTAL</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {(lastTransaction?.items || []).map((item: any, i: number) => (
+                      <tr key={i}>
+                        <td className="py-1 uppercase pr-2">{item.name}</td>
+                        <td className="text-center py-1">{item.quantity}</td>
+                        <td className="text-right py-1">{(item.price * item.quantity).toLocaleString()}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+
+                <div className="border-t border-dashed border-black mt-4 pt-2 space-y-1">
+                  <div className="flex justify-between">
+                    <span>Subtotal:</span>
+                    <span>Rp {lastTransaction?.totalAmount ? (lastTransaction.totalAmount + (lastTransaction.discount || 0)).toLocaleString() : '0'}</span>
+                  </div>
+                  {lastTransaction?.discount > 0 && (
+                    <div className="flex justify-between text-red-600">
+                      <span>Diskon:</span>
+                      <span>- Rp {lastTransaction.discount.toLocaleString()}</span>
+                    </div>
+                  )}
+                  <div className="flex justify-between font-bold text-xs pt-1">
+                    <span>TOTAL:</span>
+                    <span>Rp {lastTransaction?.totalAmount?.toLocaleString()}</span>
+                  </div>
+                  {lastTransaction?.cashReceived > 0 && (
+                    <>
+                      <div className="flex justify-between">
+                        <span>Bayar:</span>
+                        <span>Rp {lastTransaction.cashReceived.toLocaleString()}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>Kembali:</span>
+                        <span>Rp {(lastTransaction.cashReceived - lastTransaction.totalAmount).toLocaleString()}</span>
+                      </div>
+                    </>
+                  )}
+                </div>
+
+                <div className="text-center mt-8 space-y-1">
+                  <p className="uppercase text-[8px]">{workshopProfile.footerMessage || 'Terima Kasih Atas Kunjungan Anda'}</p>
+                  <p className="text-[7px]">Barang yang sudah dibeli tidak dapat ditukar/dikembalikan</p>
+                </div>
               </div>
             </div>
+
+            <div className="grid grid-cols-2 gap-4 shrink-0">
+              <button 
+                onClick={() => handleSilentPrint(lastTransaction)}
+                disabled={isPrinting}
+                className="w-full py-4 bg-green-500 text-white rounded-2xl font-black shadow-lg shadow-green-500/30 hover:scale-[1.02] active:scale-95 transition-all flex items-center justify-center gap-2 text-sm uppercase tracking-wider"
+              >
+                {isPrinting ? <Loader2 className="w-5 h-5 animate-spin" /> : <><Printer className="w-5 h-5" /> CETAK NOTA</>}
+              </button>
+              <button 
+                onClick={() => setShowSuccessModal(false)} 
+                className="w-full py-4 bg-zinc-900 text-white rounded-2xl font-black hover:bg-zinc-800 transition-all text-sm uppercase tracking-wider"
+              >
+                TRANSAKSI BARU
+              </button>
+            </div>
+            <button 
+              onClick={handlePrint}
+              className="mt-4 w-full py-2 text-muted-foreground hover:text-primary transition-all text-[9px] font-black uppercase tracking-widest flex items-center justify-center gap-2"
+            >
+              <FileText className="w-3 h-3" /> Cetak Alternatif (Browser A4/PDF)
+            </button>
           </div>
         </div>
       )}
@@ -1140,24 +1225,40 @@ const POS: React.FC = () => {
                   <span className="text-[10px] font-black px-3 py-1 bg-primary/10 text-primary rounded-full">{cart.length} Item</span>
                 </div>
                 <div className="space-y-3 max-h-[50vh] overflow-y-auto custom-scrollbar pr-4">
-                  {cart.map(item => (
-                    <div key={item.id} className="flex justify-between items-center bg-card p-4 rounded-2xl border border-border/50 shadow-sm">
-                      <div className="flex-1 min-w-0 pr-4">
-                        <p className="text-[11px] font-black uppercase truncate leading-tight mb-1">{item.name}</p>
-                        <div className="flex items-center gap-3">
-                          <span className="text-[8px] font-bold text-muted-foreground uppercase">{item.quantity}x @ Rp {item.price.toLocaleString()}</span>
-                          <span className={`text-[8px] font-black uppercase px-1.5 py-0.5 rounded ${
-                            item.type === 'part' ? 'bg-primary/10 text-primary' : 'bg-blue-500/10 text-blue-500'
-                          }`}>
-                            {item.type === 'part' ? 'PART' : 'SERVICE'}
-                          </span>
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <p className="text-[12px] font-black text-primary">Rp {(item.price * item.quantity).toLocaleString()}</p>
-                      </div>
-                    </div>
-                  ))}
+                  <table className="w-full text-left border-collapse">
+                    <thead>
+                      <tr className="border-b border-border/50">
+                        <th className="py-3 text-[10px] font-black text-muted-foreground uppercase tracking-widest">Item</th>
+                        <th className="py-3 text-[10px] font-black text-muted-foreground uppercase tracking-widest text-center">Qty</th>
+                        <th className="py-3 text-[10px] font-black text-muted-foreground uppercase tracking-widest text-right">Total</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-border/20">
+                      {cart.map(item => (
+                        <tr key={item.id} className="group">
+                          <td className="py-4 pr-4">
+                            <p className="text-[11px] font-black uppercase leading-tight mb-1">{item.name}</p>
+                            <div className="flex items-center gap-2">
+                              <span className={`text-[8px] font-black uppercase px-1.5 py-0.5 rounded ${
+                                item.type === 'part' ? 'bg-orange-500/10 text-orange-500' : 'bg-blue-500/10 text-blue-500'
+                              }`}>
+                                {item.type === 'part' ? 'PART' : 'SERVICE'}
+                              </span>
+                              {item.isMechanicFault && <span className="text-[8px] font-black text-red-500 uppercase tracking-tighter">FREE (RUSAK)</span>}
+                            </div>
+                          </td>
+                          <td className="py-4 text-center">
+                            <span className="text-[11px] font-black">{item.quantity}</span>
+                          </td>
+                          <td className="py-4 text-right">
+                            <p className={`text-[12px] font-black ${item.isMechanicFault ? 'text-red-500 line-through' : 'text-primary'}`}>
+                              Rp {(item.price * item.quantity).toLocaleString()}
+                            </p>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
                 </div>
 
                 <div className="mt-8 pt-6 border-t border-border/50">
@@ -1227,40 +1328,43 @@ const POS: React.FC = () => {
                 </div>
               )}
 
-              {/* Discount */}
-              <div className="space-y-2">
-                <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Diskon (Rp) — Opsional</label>
+              {/* Discount Section */}
+              <div className="bg-primary/5 rounded-[2rem] p-6 border border-primary/20 space-y-4">
+                <div className="flex items-center justify-between">
+                  <label className="text-[10px] font-black uppercase tracking-widest text-primary ml-1">Diskon Potongan (Rp)</label>
+                  <div className="px-3 py-1 bg-primary text-white rounded-full text-[10px] font-black uppercase">Promo / Potongan</div>
+                </div>
                 <div className="relative">
-                  <span className="absolute left-5 top-1/2 -translate-y-1/2 font-black text-muted-foreground">Rp</span>
+                  <span className="absolute left-6 top-1/2 -translate-y-1/2 font-black text-primary/60 text-lg">Rp</span>
                   <input
                     type="number"
-                    placeholder="0"
-                    className="w-full bg-muted/50 border-2 border-border rounded-2xl pl-14 pr-6 py-4 font-black text-xl focus:outline-none focus:border-primary transition-all"
+                    placeholder="Masukkan jumlah diskon..."
+                    className="w-full bg-white dark:bg-zinc-900 border-2 border-primary/20 rounded-2xl pl-16 pr-6 py-4 font-black text-2xl text-primary focus:outline-none focus:border-primary focus:ring-4 focus:ring-primary/5 transition-all"
                     value={discount || ''}
                     onChange={e => setDiscount(Number(e.target.value))}
                   />
                 </div>
               </div>
 
-              {/* Summary */}
-              <div className="bg-muted/40 rounded-2xl p-5 space-y-2 border border-border/50">
-                <div className="flex justify-between text-xs font-bold text-muted-foreground">
+              {/* Summary Section */}
+              <div className="bg-muted/40 rounded-[2rem] p-8 space-y-3 border border-border/50">
+                <div className="flex justify-between text-xs font-bold text-muted-foreground uppercase tracking-widest">
                   <span>Subtotal</span>
                   <span>Rp {subtotal.toLocaleString('id-ID')}</span>
                 </div>
-                <div className="flex justify-between text-xs font-bold text-muted-foreground">
+                <div className="flex justify-between text-xs font-bold text-muted-foreground uppercase tracking-widest">
                   <span>Pajak ({workshopProfile.taxRate}%)</span>
                   <span>Rp {Math.round(tax).toLocaleString('id-ID')}</span>
                 </div>
                 {discount > 0 && (
-                  <div className="flex justify-between text-xs font-black text-green-500">
-                    <span>Diskon</span>
+                  <div className="flex justify-between text-xs font-black text-green-500 uppercase tracking-widest animate-pulse">
+                    <span>Diskon (Potongan)</span>
                     <span>- Rp {discount.toLocaleString('id-ID')}</span>
                   </div>
                 )}
-                <div className="flex justify-between items-center pt-3 border-t border-border/50">
-                  <span className="font-black text-sm uppercase tracking-wide">TOTAL</span>
-                  <span className="text-2xl font-black text-primary">Rp {total.toLocaleString('id-ID')}</span>
+                <div className="flex justify-between items-center pt-6 border-t border-border/50 mt-2">
+                  <span className="font-black text-sm uppercase tracking-[0.2em] text-foreground">TOTAL TAGIHAN</span>
+                  <span className="text-4xl font-black text-primary font-mono tracking-tighter italic">Rp {total.toLocaleString('id-ID')}</span>
                 </div>
               </div>
 
