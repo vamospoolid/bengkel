@@ -671,15 +671,18 @@ const POS: React.FC = () => {
                 {doneOrders.map(order => (
                   <button 
                     key={order.id}
-                    onClick={() => pullFromWorkshopAuto(order.plateNumber)}
+                    onClick={() => {
+                      setCustomerType('Umum');
+                      pullFromWorkshopAuto(order.plateNumber);
+                    }}
                     className="flex items-center gap-3 glass-card p-3 rounded-2xl border border-green-500/20 hover:border-green-500/50 transition-all shrink-0 animate-in fade-in"
                   >
                     <div className="w-8 h-8 rounded-lg bg-green-500/10 flex items-center justify-center text-green-500">
                       <CheckCircle2 className="w-4 h-4" />
                     </div>
                     <div className="min-w-0 text-left">
-                      <p className="font-black text-[13px] tracking-widest leading-none">\${order.plateNumber}</p>
-                      <p className="text-[9px] text-muted-foreground truncate mt-1">\${order.model || 'Unit'}</p>
+                      <p className="font-black text-[13px] tracking-widest leading-none">{order.plateNumber}</p>
+                      <p className="text-[9px] text-muted-foreground truncate mt-1">{order.model || 'Unit'}</p>
                     </div>
                   </button>
                 ))}
@@ -830,7 +833,11 @@ const POS: React.FC = () => {
               {(['Umum', 'Grosir', 'Bengkel'] as const).map(type => (
                 <button 
                   key={type} 
-                  onClick={() => handleCustomerTypeChange(type)}
+                  onClick={() => {
+                    handleCustomerTypeChange(type);
+                    if (type !== 'Umum') setOnlyShopping(true); // Hide plate for non-Umum
+                    else setOnlyShopping(false);
+                  }}
                   className={`flex-1 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${customerType === type ? 'bg-card text-primary shadow-sm' : 'text-muted-foreground'}`}
                 >
                   {type}
@@ -838,13 +845,16 @@ const POS: React.FC = () => {
               ))}
             </div>
 
-            <div className="flex items-center gap-2 px-1">
-              <input type="checkbox" id="only-shop" checked={onlyShopping} onChange={(e) => setOnlyShopping(e.target.checked)} className="w-3 h-3 accent-primary" />
-              <label htmlFor="only-shop" className="text-[10px] font-black text-muted-foreground uppercase tracking-widest cursor-pointer">Hanya Belanja (Tanpa Plat)</label>
-            </div>
+            {/* Input Section */}
+            <div className="space-y-3">
+              {customerType === 'Umum' && (
+                <div className="flex items-center gap-2 px-1">
+                  <input type="checkbox" id="only-shop" checked={onlyShopping} onChange={(e) => setOnlyShopping(e.target.checked)} className="w-3 h-3 accent-primary" />
+                  <label htmlFor="only-shop" className="text-[10px] font-black text-muted-foreground uppercase tracking-widest cursor-pointer">Hanya Belanja (Tanpa Plat)</label>
+                </div>
+              )}
 
-            {!onlyShopping && (
-              <div className="space-y-3">
+              {customerType === 'Umum' && !onlyShopping ? (
                 <div className="relative">
                   <Wrench className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-primary" />
                   <input 
@@ -858,47 +868,60 @@ const POS: React.FC = () => {
                     {isSearching ? <Loader2 className="w-4 h-4 animate-spin" /> : <Wrench className="w-4 h-4" />}
                   </button>
                 </div>
+              ) : (
+                <div className="space-y-3 animate-in slide-in-from-top-2 duration-300">
+                  <div className="relative">
+                    <UserIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                    <input 
+                      type="text" 
+                      placeholder={customerType === 'Umum' ? "NAMA PELANGGAN (OPSIONAL)" : "NAMA PELANGGAN / TOKO"} 
+                      className="w-full bg-muted border border-border rounded-2xl pl-12 pr-6 py-4 font-black uppercase text-xs focus:outline-none focus:ring-4 focus:ring-primary/5 transition-all"
+                      value={customerSearchTerm}
+                      onChange={(e) => {
+                        setCustomerSearchTerm(e.target.value);
+                        setShowCustomerSuggestions(true);
+                      }}
+                    />
+                    {showCustomerSuggestions && customerSearchTerm.length >= 2 && (
+                      <div className="absolute top-full left-0 right-0 mt-2 bg-card border border-border rounded-3xl shadow-2xl z-[100] overflow-hidden">
+                        {customers
+                          .filter(c => c.name.toLowerCase().includes(customerSearchTerm.toLowerCase()))
+                          .map(c => (
+                            <button 
+                              key={c.id} 
+                              className="w-full px-6 py-4 text-left hover:bg-muted border-b border-border/50 flex justify-between items-center group transition-all"
+                              onClick={() => {
+                                setSelectedCustomerId(c.id);
+                                setCustomerSearchTerm(c.name);
+                                setCustomerWA((c as any).whatsapp || (c as any).phone || '');
+                                setShowCustomerSuggestions(false);
+                              }}
+                            >
+                              <div>
+                                <p className="text-sm font-black text-foreground group-hover:text-primary transition-colors uppercase tracking-tight">{c.name}</p>
+                                <p className="text-[10px] text-muted-foreground font-bold uppercase">{c.type}</p>
+                              </div>
+                              <CheckCircle2 className="w-4 h-4 text-primary opacity-0 group-hover:opacity-100 transition-all" />
+                            </button>
+                          ))
+                        }
+                      </div>
+                    )}
+                  </div>
 
-                <div className="relative">
-                  <UserIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                  <input 
-                    type="text" 
-                    placeholder="NAMA PELANGGAN" 
-                    className="w-full bg-muted border border-border rounded-2xl pl-12 pr-6 py-4 font-black uppercase text-xs focus:outline-none focus:ring-4 focus:ring-primary/5 transition-all"
-                    value={customerSearchTerm}
-                    onChange={(e) => {
-                      setCustomerSearchTerm(e.target.value);
-                      setShowCustomerSuggestions(true);
-                    }}
-                  />
-                  {showCustomerSuggestions && customerSearchTerm.length >= 2 && (
-                    <div className="absolute top-full left-0 right-0 mt-2 bg-card border border-border rounded-3xl shadow-2xl z-[100] overflow-hidden">
-                      {customers
-                        .filter(c => c.name.toLowerCase().includes(customerSearchTerm.toLowerCase()))
-                        .map(c => (
-                          <button 
-                            key={c.id} 
-                            className="w-full px-6 py-4 text-left hover:bg-muted border-b border-border/50 flex justify-between items-center group transition-all"
-                            onClick={() => {
-                              setSelectedCustomerId(c.id);
-                              setCustomerSearchTerm(c.name);
-                              setCustomerWA((c as any).whatsapp || (c as any).phone || '');
-                              setShowCustomerSuggestions(false);
-                            }}
-                          >
-                            <div>
-                              <p className="text-sm font-black text-foreground group-hover:text-primary transition-colors uppercase tracking-tight">{c.name}</p>
-                              <p className="text-[10px] text-muted-foreground font-bold uppercase">{c.type}</p>
-                            </div>
-                            <CheckCircle2 className="w-4 h-4 text-primary opacity-0 group-hover:opacity-100 transition-all" />
-                          </button>
-                        ))
-                      }
-                    </div>
-                  )}
+                  <div className="relative">
+                    <Smartphone className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                    <input 
+                      type="text" 
+                      placeholder="NO WHATSAPP (62...)" 
+                      className="w-full bg-muted border border-border rounded-2xl pl-12 pr-6 py-4 font-black uppercase text-xs focus:outline-none focus:ring-4 focus:ring-primary/5 transition-all"
+                      value={customerWA}
+                      onChange={(e) => setCustomerWA(e.target.value)}
+                    />
+                  </div>
                 </div>
-              </div>
-            )}
+              )}
+            </div>
           </div>
         </div>
 
