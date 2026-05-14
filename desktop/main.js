@@ -8,28 +8,30 @@ function createWindow() {
   mainWindow = new BrowserWindow({
     width: 1280,
     height: 800,
-    title: "Jakarta Motor POS",
-    show: true, // Tampilkan langsung agar kita bisa lihat prosesnya
+    title: "Jakarta Motor POS - Production",
+    show: true,
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: false,
-      webSecurity: false // Izinkan load file lokal
+      webSecurity: false 
     }
   });
 
-  // Buka versi desktop asli (selalu lokal)
-  // Ini memastikan localStorage (data login) tidak hilang saat mati lampu/offline
-  let frontendPath;
-  if (app.isPackaged) {
-    frontendPath = path.join(process.resourcesPath, 'frontend_dist', 'index.html');
-  } else {
-    frontendPath = path.join(__dirname, '../frontend/dist/index.html');
-  }
+  // CONNECT TO VPS BY DEFAULT
+  // Ini memastikan Electron selalu mengambil data terbaru dari Cloud
+  const VPS_URL = 'http://173.212.243.240:5173';
   
-  mainWindow.loadFile(frontendPath).catch(e => {
-    console.error("Gagal memuat versi lokal:", e);
+  mainWindow.loadURL(VPS_URL).catch(e => {
+    console.error("Gagal memuat VPS, mencoba versi lokal sebagai fallback...", e);
+    let frontendPath;
+    if (app.isPackaged) {
+      frontendPath = path.join(process.resourcesPath, 'frontend_dist', 'index.html');
+    } else {
+      frontendPath = path.join(__dirname, '../frontend/dist/index.html');
+    }
+    mainWindow.loadFile(frontendPath);
   });
 
   // Matikan panel devtools otomatis agar rapi

@@ -1,3 +1,4 @@
+import React, { useState, useEffect } from 'react';
 import { Search, Plus, Filter, MoreVertical, Barcode, Loader2, X, Trash2, Edit3, History, Bike, Car, Layers, MapPin, Package, Tag, ChevronDown, ChevronRight, Minus, TrendingUp, ShoppingCart, DollarSign, CheckCircle2, Printer, Download, AlertTriangle, FileText, Camera } from 'lucide-react';
 import { Html5QrcodeScanner, Html5QrcodeSupportedFormats } from 'html5-qrcode';
 import api from '../api';
