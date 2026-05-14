@@ -512,28 +512,22 @@ const POS: React.FC = () => {
 
     // SILENT PRINT TRIGGER
     if (autoPrint && transaction.id) {
-      handleSilentPrint(transaction.id);
+      handleSilentPrint(transaction);
     }
   };
 
-  const handleSilentPrint = async (transactionId: string) => {
+  const handleSilentPrint = async (tx: any) => {
     // 1. Cek jika di Electron dan ada printer yang dipilih
     const defaultPrinter = localStorage.getItem('default_printer');
     if ((window as any).electron && defaultPrinter) {
       setIsPrinting(true);
       try {
-        const printContent = document.getElementById('receipt-print-hidden');
-        const html = printContent ? printContent.innerHTML : '';
-        
-        await (window as any).electron.invoke('print-silent', { 
-          silent: true, 
-          deviceName: defaultPrinter,
-          pageSize: { width: 80000, height: 500000 }, // 50cm height to avoid multi-page cuts
-          margins: { marginType: 'none' }
-        }, `<html><head><style>@page { margin: 0; } body { margin: 0; padding: 0; font-family: monospace; } .receipt-container { padding-bottom: 50px; }</style></head><body><div class="receipt-container">${html}</div></body></html>`);
-        return;
+        // Gunakan metode RAW (ESC/POS) - PALING STABIL UNTUK THERMAL
+        const success = await (window as any).electron.invoke('print-raw', defaultPrinter, tx, workshopProfile);
+        if (!success) throw new Error('Gagal mencetak RAW');
       } catch (err) {
-        console.error('Electron silent print failed', err);
+        console.error('Electron RAW print failed', err);
+        // Fallback ke silent print jika RAW gagal (opsional)
       } finally {
         setIsPrinting(false);
       }
@@ -542,7 +536,7 @@ const POS: React.FC = () => {
     // 2. Fallback ke cara lama (Backend print) atau manual
     setIsPrinting(true);
     try {
-      await api.post('/print/receipt', { transactionId });
+      await api.post('/print/receipt', { transactionId: tx.id });
     } catch (err: any) {
       console.error('Silent print failed', err);
       if (!(window as any).electron) {

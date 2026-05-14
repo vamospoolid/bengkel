@@ -425,28 +425,21 @@ const Settings: React.FC<{
       }
 
       try {
-        const testHtml = `
-          <div style="font-family: monospace; text-align: center; width: 80mm; padding: 10mm 0;">
-            <h2 style="margin-bottom: 5mm;">JAKARTA MOTOR</h2>
-            <div style="border-top: 1px dashed #000; margin: 5mm 0;"></div>
-            <p style="font-size: 14px; font-weight: bold;">TEST PRINT BERHASIL</p>
-            <p style="font-size: 12px; margin-top: 2mm;">Printer: ${defaultPrinter}</p>
-            <div style="border-top: 1px dashed #000; margin: 5mm 0;"></div>
-            <p style="font-size: 10px;">${new Date().toLocaleString('id-ID')}</p>
-          </div>
-        `;
+        const dummyTx = {
+          invoiceNo: "TEST-PRINT",
+          createdAt: new Date().toISOString(),
+          items: [{ name: "TEST ITEM", quantity: 1, price: 10000 }],
+          totalAmount: 10000,
+          customer: { name: "TEST CUSTOMER" }
+        };
         
-        const success = await (window as any).electron.invoke('print-silent', {
-          silent: true,
-          deviceName: defaultPrinter,
-          margins: { marginType: 'none' }
-        }, `<html><head><style>@page { margin: 0; } body { margin: 0; padding: 0; }</style></head><body>${testHtml}</body></html>`);
+        const success = await (window as any).electron.invoke('print-raw', defaultPrinter, dummyTx);
 
         if (success) {
           setSaveSuccess('Print Test berhasil dikirim ke printer: ' + defaultPrinter);
           setTimeout(() => setSaveSuccess(''), 3000);
         } else {
-          setSaveSuccess('Gagal mengirim Print Test. Cek printer Anda.');
+          setSaveSuccess('Gagal mengirim Print Test (RAW). Cek printer Anda.');
           setTimeout(() => setSaveSuccess(''), 3000);
         }
       } catch (err: any) {

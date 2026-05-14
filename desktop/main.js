@@ -84,9 +84,21 @@ ipcMain.handle('get-printers', async () => {
 
 // RAW ESC/POS PRINTER
 ipcMain.handle('print-raw', async (event, printerName, transaction, workshop) => {
-  return new Promise((resolve, reject) => {
+  return new Promise(async (resolve, reject) => {
     try {
       const cleanPrinterName = printerName.trim();
+      
+      let w = workshop;
+      if (!w) {
+        try {
+          const { PrismaClient } = require('@prisma/client');
+          const prisma = new PrismaClient();
+          w = await prisma.workshop.findFirst();
+        } catch (err) {
+          console.error("Failed to fetch workshop for raw print", err);
+          w = {};
+        }
+      }
       
       const printer = new ThermalPrinter({
         type: PrinterTypes.EPSON,
@@ -97,7 +109,6 @@ ipcMain.handle('print-raw', async (event, printerName, transaction, workshop) =>
         width: 42
       });
 
-      const w = workshop || {};
       printer.alignCenter();
       printer.setTextDoubleHeight();
       printer.setTextDoubleWidth();
@@ -258,33 +269,48 @@ ipcMain.handle('print-silent', async (event, options, htmlContent) => {
       });
       
       // Ensure we have a valid HTML structure but don't double-wrap
+      // Force High Contrast for Thermal
+      const printStyles = `
+        <style>
+          * { color: black !important; background: white !important; -webkit-print-color-adjust: exact; }
+          body { margin: 0; padding: 0; font-family: 'Courier New', Courier, monospace; }
+          @page { margin: 0; }
+        </style>
+      `;
+
       const fullHtml = htmlContent.includes('<html') 
-        ? htmlContent 
-        : `<!DOCTYPE html><html><head><meta charset="UTF-8"><style>body { margin: 0; padding: 0; font-family: monospace; }</style></head><body>${htmlContent}</body></html>`;
+        ? htmlContent.replace('</head>', `${printStyles}</head>`) 
+        : `<!DOCTYPE html><html><head><meta charset="UTF-8">${printStyles}</head><body>${htmlContent}</body></html>`;
       
-      printWindow.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(fullHtml)}`);
+      const tempPath = path.join(os.tmpdir(), `print_${Date.now()}.html`);
+      fs.writeFileSync(tempPath, fullHtml);
+      printWindow.loadFile(tempPath);
       
       printWindow.webContents.on('did-finish-load', () => {
-        console.log(`[Print] Window loaded, starting print...`);
-        
-        // Prepare final options
-        const printOptions = {
-          silent: options.silent ?? true,
-          deviceName: options.deviceName,
-          margins: options.margins || { marginType: 'none' },
-          pageSize: options.pageSize || 'A4', // Default to A4 if not specified
-          color: options.color ?? false,
-          copies: options.copies || 1
-        };
+        console.log(`[Print] File loaded, waiting for paint...`);
+        setTimeout(() => {
+          if (printWindow.isDestroyed()) return;
+          
+          const printOptions = {
+            silent: options.silent ?? true,
+            deviceName: options.deviceName,
+            margins: options.margins || { marginType: 'none' },
+            pageSize: options.pageSize || 'A4',
+            color: options.color ?? false,
+            printBackground: true,
+            scaleFactor: 100,
+            copies: options.copies || 1
+          };
 
-        console.log(`[Print] Options:`, JSON.stringify(printOptions));
-
-        printWindow.webContents.print(printOptions, (success, errorType) => {
-          if (!success) console.error('[Print] Failed:', errorType);
-          else console.log('[Print] Success!');
-          printWindow.close();
-          resolve(success);
-        });
+          console.log(`[Print] Options:`, JSON.stringify(printOptions));
+          printWindow.webContents.print(printOptions, (success, errorType) => {
+            try { fs.unlinkSync(tempPath); } catch (e) {}
+            if (!success) console.error('[Print] Failed:', errorType);
+            else console.log('[Print] Success!');
+            printWindow.close();
+            resolve(success);
+          });
+        }, 1000);
       });
 
       // Timeout safety

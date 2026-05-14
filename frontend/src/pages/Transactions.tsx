@@ -188,13 +188,7 @@ const Transactions: React.FC = () => {
     // Jika di Electron, gunakan silent print jika printer dipilih
     const defaultPrinter = localStorage.getItem('default_printer');
     if ((window as any).electron && defaultPrinter) {
-      const html = printContent ? printContent.innerHTML : '';
-      (window as any).electron.invoke('print-silent', { 
-        silent: true, 
-        deviceName: defaultPrinter,
-        pageSize: { width: 80000, height: 500000 },
-        margins: { marginType: 'none' }
-      }, `<html><head><style>@page { margin: 0; } body { margin: 0; padding: 0; font-family: monospace; } .receipt-container { padding-bottom: 50px; }</style></head><body><div class="receipt-container">${html}</div></body></html>`);
+      (window as any).electron.invoke('print-raw', defaultPrinter, tx, workshopProfile);
       return;
     }
     
