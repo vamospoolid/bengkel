@@ -642,7 +642,7 @@ const POS: React.FC = () => {
 
     // Bug #2 fix: use if/else so Electron and web API are mutually exclusive
     // Previously both paths always ran, causing double print on Electron
-    if ((window as any).electron && defaultPrinter) {
+    if ((window as any).electron) {
       // === Electron path: direct hardware RAW print ===
       setIsPrinting(true);
       try {
@@ -755,9 +755,10 @@ const POS: React.FC = () => {
                     key={order.id}
                     onClick={() => {
                       setCustomerType('Umum');
+                      setPlateNumber(order.plateNumber); // Biar kelihatan terisi di kotak plat
                       pullFromWorkshopAuto(order.plateNumber);
                     }}
-                    className="flex items-center gap-3 glass-card p-3 rounded-2xl border border-green-500/20 hover:border-green-500/50 transition-all shrink-0 animate-in fade-in"
+                    className="flex items-center gap-3 glass-card p-3 rounded-2xl border border-green-500/20 hover:border-green-500/50 hover:scale-105 active:scale-95 transition-all shrink-0 animate-in fade-in cursor-pointer"
                   >
                     <div className="w-8 h-8 rounded-lg bg-green-500/10 flex items-center justify-center text-green-500">
                       <CheckCircle2 className="w-4 h-4" />
