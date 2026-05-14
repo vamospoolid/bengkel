@@ -350,7 +350,7 @@ const Settings: React.FC<{
 
   // Label Printer Settings
   const [labelPrinter, setLabelPrinter] = useState('Xprinter XP-D4601B');
-  const [labelColumns, setLabelColumns] = useState(3);
+  const [labelColumns, setLabelColumns] = useState(1);
   const [isSavingLabelPrinter, setIsSavingLabelPrinter] = useState(false);
 
   // Reset Database State
@@ -625,15 +625,20 @@ const Settings: React.FC<{
                     {(window as any).electron ? 'Pilih Printer Desktop (Lokal)' : 'Pilih Printer Aktif (Server)'}
                   </label>
                   {(window as any).electron && (
-                    <button
-                      onClick={async () => {
+                  <button
+                    onClick={async () => {
+                      if ((window as any).electron) {
                         const ePrinters = await (window as any).electron.getPrinters();
                         setPrinters(ePrinters);
-                      }}
-                      className="text-[9px] font-black text-primary uppercase hover:underline"
-                    >
-                      Refresh Daftar
-                    </button>
+                      } else {
+                        const res = await api.get('/print/list');
+                        setPrinters(res.data);
+                      }
+                    }}
+                    className="text-[9px] font-black text-primary uppercase hover:underline"
+                  >
+                    Refresh Daftar
+                  </button>
                   )}
                 </div>
 

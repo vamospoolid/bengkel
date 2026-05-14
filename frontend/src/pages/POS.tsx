@@ -411,14 +411,17 @@ const POS: React.FC = () => {
         priceTier: 'normal'
       }));
 
+      console.log('Workshop Search Success:', { serviceItems, partItems });
       setWorkOrderId(task.id);
       setPulledWorkOrder(task);
 
       if (task.mode === 'WORKSHOP') {
         if (serviceItems.length === 0 && partItems.length === 0) {
+          console.warn('Workshop found but no items!');
           setPullError('Unit ditemukan tapi belum ada jasa/barang yang dipilih di bengkel.');
           setCart([]);
         } else {
+          console.log('Setting cart with:', [...serviceItems, ...partItems]);
           setCart([...serviceItems, ...partItems]);
         }
       } else {
@@ -1044,7 +1047,7 @@ const POS: React.FC = () => {
           <button 
             onClick={handleCheckout} 
             disabled={cart.length === 0 || isCheckoutProcessing}
-            className="w-full py-5 bg-zinc-900 text-white rounded-[1.5rem] font-black text-sm shadow-2xl hover:bg-zinc-800 active:scale-95 disabled:opacity-50 disabled:scale-100 transition-all flex items-center justify-center gap-3 uppercase tracking-[0.3em]"
+            className="w-full py-5 bg-orange-600 text-white rounded-[1.5rem] font-black text-sm shadow-2xl shadow-orange-600/30 hover:bg-orange-500 hover:scale-[1.02] active:scale-95 disabled:opacity-50 disabled:scale-100 transition-all flex items-center justify-center gap-3 uppercase tracking-[0.3em]"
           >
             {isCheckoutProcessing ? <Loader2 className="w-5 h-5 animate-spin" /> : <><CreditCard className="w-5 h-5" /> PROSES PEMBAYARAN</>}
           </button>

@@ -1580,22 +1580,32 @@ app.patch('/api/workshop/tasks/:id', authenticate, async (req, res) => {
 app.get('/api/workshop/search/:plate', authenticate, async (req, res) => {
   const { plate } = req.params;
   try {
+    const normalizedPlate = (plate as string).replace(/\s+/g, '').toUpperCase();
+    
     // 1. First, check for a DONE work order (Option B)
     const task = await prisma.workOrder.findFirst({
       where: {
-        plateNumber: (plate as string).toUpperCase(),
+        OR: [
+          { plateNumber: normalizedPlate },
+          { plateNumber: (plate as string).toUpperCase() }
+        ],
         status: 'DONE'
       },
       include: {
         mechanic: { select: { id: true, name: true } },
         vehicle: true
-      }
+      },
+      orderBy: { createdAt: 'desc' }
     });
 
     if (task) {
+      // Robustly handle services and parts (parse if string)
+      const rawServices = typeof task.services === 'string' ? JSON.parse(task.services) : (task.services || []);
+      const rawParts = typeof task.partsUsed === 'string' ? JSON.parse(task.partsUsed) : (task.partsUsed || []);
+
       // Enrich services with price data from Service table
       const serviceDetails = await Promise.all(
-        (Array.isArray(task.services) ? task.services : []).map(async (svcItem: any) => {
+        (Array.isArray(rawServices) ? rawServices : []).map(async (svcItem: any) => {
           const isObject = typeof svcItem === 'object' && svcItem !== null;
           const svcName = isObject ? svcItem.name : svcItem;
           const manualPrice = isObject ? svcItem.price : null;
@@ -1611,7 +1621,7 @@ app.get('/api/workshop/search/:plate', authenticate, async (req, res) => {
       );
 
       // Extract parts data
-      const partDetails = (Array.isArray(task.partsUsed) ? task.partsUsed : []).map((p: any) => ({
+      const partDetails = (Array.isArray(rawParts) ? rawParts : []).map((p: any) => ({
         id: p.id,
         name: p.name,
         price: p.price,
