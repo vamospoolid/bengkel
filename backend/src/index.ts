@@ -1622,6 +1622,7 @@ app.get('/api/workshop/search/:plate', authenticate, async (req, res) => {
   const { plate } = req.params;
   try {
     const normalizedPlate = (plate as string).replace(/\s+/g, '').toUpperCase();
+    console.log('Searching workshop for plate:', normalizedPlate);
     
     // 1. First, check for a DONE work order (Option B)
     const task = await prisma.workOrder.findFirst({
@@ -1643,10 +1644,14 @@ app.get('/api/workshop/search/:plate', authenticate, async (req, res) => {
       // Robustly handle services and parts (handle string vs object, and nested JSON)
       const parseJson = (val: any) => {
         if (!val) return [];
-        if (typeof val === 'string') {
-          try { return JSON.parse(val); } catch (e) { return []; }
+        if (typeof val === 'object') return Array.isArray(val) ? val : [val];
+        try { 
+          const parsed = JSON.parse(String(val)); 
+          return Array.isArray(parsed) ? parsed : [parsed];
+        } catch (e) { 
+          console.error('JSON Parse Error for field:', e);
+          return []; 
         }
-        return Array.isArray(val) ? val : [val];
       };
 
       const rawServices = parseJson(task.services);
@@ -1661,7 +1666,14 @@ app.get('/api/workshop/search/:plate', authenticate, async (req, res) => {
           const manualPrice = isObject ? svcItem.price : null;
 
           try {
-            const svc = await prisma.service.findFirst({ where: { name: svcName } });
+            if (!svcName) return null;
+            const svc = await prisma.service.findFirst({ 
+              where: { 
+                name: {
+                  equals: svcName
+                }
+              } 
+            });
             return {
               id: svc?.id || `temp-${Date.now()}-${Math.random()}`,
               name: svcName,
