@@ -21,6 +21,7 @@ import PurchaseSupplier from './pages/PurchaseSupplier';
 import PurchaseList from './pages/PurchaseList';
 import CustomerDisplay from './pages/CustomerDisplay';
 import Attendance from './pages/Attendance';
+import MobileScanner from './pages/MobileScanner';
 import SyncProvider from './components/SyncProvider';
 import { Toaster } from 'react-hot-toast';
 
@@ -62,9 +63,13 @@ function App() {
     localStorage.setItem('accentColor', accentColor);
   }, [accentColor]);
 
-  // Handle special standalone routes (e.g. for TV display)
+  // Handle special standalone routes (e.g. for TV display or Mobile Scanner)
   if (window.location.pathname === '/display') {
     return <CustomerDisplay />;
+  }
+
+  if (window.location.pathname === '/scan') {
+    return <MobileScanner />;
   }
 
   if (!user) {
@@ -122,6 +127,8 @@ function App() {
         return <PurchaseSupplier />;
       case 'purchase-list':
         return <PurchaseList />;
+      case 'mobile-scanner':
+        return <MobileScanner />;
       default:
         return <Dashboard />;
     }

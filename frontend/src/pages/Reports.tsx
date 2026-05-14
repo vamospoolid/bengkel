@@ -86,7 +86,9 @@ const Reports: React.FC = () => {
     taxRate: 11
   });
   const [isPrinting, setIsPrinting] = useState(false);
+  const [isExportingPDF, setIsExportingPDF] = useState(false);
   const [printContent, setPrintContent] = useState<React.ReactNode>(null);
+  const [showExpenseDetail, setShowExpenseDetail] = useState(false);
 
   const fetchReports = async () => {
     try {
@@ -190,7 +192,7 @@ const Reports: React.FC = () => {
   useEffect(() => {
     fetchReports();
     fetchWorkshopProfile();
-    if (activeTab === 'journal') fetchJournal();
+    if (activeTab === 'journal' || activeTab === 'overview') fetchJournal();
     if (activeTab === 'payable') fetchPayables();
   }, [dateRange, customDates, activeTab]);
 
@@ -217,6 +219,8 @@ const Reports: React.FC = () => {
       dateRange === 'custom' ? `${customDates.start} s/d ${customDates.end}` :
       'Semua Waktu';
 
+    const { summary, lowStockList } = reportData;
+
     if (activeTab === 'pl' || activeTab === 'overview') {
       const plData = {
         revenue: summary.totalRevenue,
@@ -227,7 +231,7 @@ const Reports: React.FC = () => {
         details: {
           serviceRevenue: summary.servicesRevenue,
           partRevenue: summary.partsRevenue,
-          expenseDetails: [] // Optional: fetch deeper details if needed
+          expenseDetails: []
         }
       };
       content = <ProfitLossReport data={plData} period={periodText} workshop={workshopProfile} />;
@@ -258,8 +262,56 @@ const Reports: React.FC = () => {
     if (content) {
       setPrintContent(content);
       setIsPrinting(true);
+      
+      // Give React a moment to prepare the content
       setTimeout(() => {
-        window.print();
+        const reportElement = document.getElementById('report-print-area');
+        if (!reportElement) return;
+
+        const reportHtml = reportElement.innerHTML;
+        const newWindow = window.open('', '_blank', 'width=1000,height=800');
+        
+        if (newWindow) {
+          newWindow.document.write(`
+            <html>
+              <head>
+                <title>Laporan ${activeTab.toUpperCase()} - Jakarta Motor</title>
+                <script src="https://cdn.tailwindcss.com"><\/script>
+                <style>
+                  body { background-color: #f3f4f6; color: black; padding: 40px 20px; font-family: sans-serif; }
+                  @media print { 
+                    body { background-color: white; padding: 0; }
+                    .no-print { display: none !important; }
+                  }
+                  .action-bar {
+                    position: fixed; top: 0; left: 0; right: 0;
+                    background: #1f2937; color: white; padding: 12px;
+                    display: flex; justify-content: center; gap: 20px;
+                    z-index: 100; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+                  }
+                  .btn {
+                    padding: 8px 24px; border-radius: 8px; font-weight: 800; 
+                    text-transform: uppercase; font-size: 12px; cursor: pointer;
+                    transition: all 0.2s;
+                  }
+                  .btn-primary { background: #ff4500; color: white; border: none; }
+                  .btn-primary:hover { background: #e63e00; transform: scale(1.05); }
+                </style>
+              </head>
+              <body>
+                <div class="action-bar no-print">
+                  <button class="btn btn-primary" onclick="window.print()">💾 SIMPAN / CETAK SEBAGAI PDF</button>
+                  <button class="btn" style="background: #374151;" onclick="window.close()">TUTUP</button>
+                </div>
+                <div class="max-w-4xl mx-auto bg-white p-12 shadow-2xl rounded-sm">
+                  ${reportHtml}
+                </div>
+              </body>
+            </html>
+          `);
+          newWindow.document.close();
+        }
+
         setIsPrinting(false);
         setPrintContent(null);
       }, 500);
@@ -341,8 +393,11 @@ const Reports: React.FC = () => {
               />
             </div>
           )}
-          <button onClick={exportPDF} className="flex items-center gap-2 px-6 py-3 bg-primary text-white rounded-xl shadow-xl shadow-primary/20 text-xs font-black uppercase tracking-widest hover:scale-105 active:scale-95 transition-all">
-            <Download className="w-4 h-4" /> Export PDF
+          <button 
+            onClick={exportPDF} 
+            className="flex items-center gap-2 px-6 py-3 bg-primary text-white rounded-xl shadow-xl shadow-primary/20 text-xs font-black uppercase tracking-widest hover:scale-105 active:scale-95 transition-all"
+          >
+            <Printer className="w-4 h-4" /> CETAK / SIMPAN PDF
           </button>
         </div>
       </div>
@@ -386,14 +441,23 @@ const Reports: React.FC = () => {
               <h4 className="text-2xl font-black">Rp {summary.netProfit.toLocaleString('id-ID')}</h4>
             </div>
 
-            <div className="glass-card p-6 rounded-3xl border-b-4 border-red-500/50 group hover:translate-y-[-4px] transition-all">
+            <button 
+              onClick={() => {
+                setShowExpenseDetail(!showExpenseDetail);
+                if (activeTab !== 'overview') setActiveTab('overview');
+              }}
+              className={`glass-card p-6 rounded-3xl border-b-4 transition-all text-left ${showExpenseDetail ? 'border-orange-500 bg-orange-500/5 ring-2 ring-orange-500/20' : 'border-red-500/50 hover:translate-y-[-4px]'}`}
+            >
               <div className="flex justify-between items-start mb-4">
-                <div className="p-3 bg-red-500/10 rounded-2xl text-red-500"><CreditCard className="w-6 h-6" /></div>
-                <span className="text-[10px] font-black text-red-500 bg-red-500/10 px-2 py-1 rounded-lg">{summary.lowStockCount} Alert</span>
+                <div className={`p-3 rounded-2xl transition-colors ${showExpenseDetail ? 'bg-orange-500 text-white' : 'bg-red-500/10 text-red-500'}`}><CreditCard className="w-6 h-6" /></div>
+                <div className="flex flex-col items-end gap-1">
+                  <span className="text-[10px] font-black text-red-500 bg-red-500/10 px-2 py-1 rounded-lg">{summary.lowStockCount} Alert</span>
+                  {showExpenseDetail && <span className="text-[8px] font-black uppercase text-orange-500 animate-pulse">Menampilkan Detail</span>}
+                </div>
               </div>
               <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-1">Biaya Operasional</p>
               <h4 className="text-2xl font-black">Rp {summary.totalExpenses.toLocaleString('id-ID')}</h4>
-            </div>
+            </button>
 
             <div className="glass-card p-6 rounded-3xl border-b-4 border-blue-500/50 group hover:translate-y-[-4px] transition-all">
               <div className="flex justify-between items-start mb-4">
@@ -513,6 +577,72 @@ const Reports: React.FC = () => {
               </div>
             </div>
           </div>
+
+          {/* Detailed Expense List (Visible when Biaya Operasional is clicked) */}
+          {showExpenseDetail && (
+            <div className="glass-card p-8 rounded-[2.5rem] border border-orange-500/20 animate-in fade-in slide-in-from-top-4 duration-500">
+              <div className="flex items-center justify-between mb-8">
+                <div className="flex items-center gap-4">
+                  <div className="p-3 bg-orange-500 rounded-2xl text-white shadow-lg shadow-orange-500/20">
+                    <DollarSign className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <h4 className="text-xl font-black uppercase tracking-tight">Rincian Biaya Operasional</h4>
+                    <p className="text-xs text-muted-foreground italic font-medium">Daftar pengeluaran kas selama periode ini.</p>
+                  </div>
+                </div>
+                <button 
+                  onClick={() => setShowExpenseDetail(false)}
+                  className="px-4 py-2 bg-muted hover:bg-muted/80 rounded-xl text-[10px] font-black uppercase transition-all"
+                >
+                  Tutup Detail
+                </button>
+              </div>
+
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-[11px]">
+                  <thead>
+                    <tr className="text-muted-foreground text-[9px] uppercase tracking-widest font-black border-b border-border/50">
+                      <th className="px-4 py-4">Tanggal</th>
+                      <th className="px-4 py-4">Kategori</th>
+                      <th className="px-4 py-4">Deskripsi</th>
+                      <th className="px-4 py-4 text-right">Jumlah</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border/30">
+                    {journal
+                      .filter(entry => entry.type === 'EXPENSE')
+                      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+                      .map((entry) => (
+                        <tr key={entry.id} className="hover:bg-orange-500/[0.02] transition-colors group">
+                          <td className="px-4 py-4 font-bold text-muted-foreground">
+                            {new Date(entry.date).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' })}
+                          </td>
+                          <td className="px-4 py-4">
+                            <span className="px-2 py-0.5 bg-orange-500/10 text-orange-500 rounded text-[9px] font-black uppercase">
+                              {entry.category}
+                            </span>
+                          </td>
+                          <td className="px-4 py-4 font-bold uppercase tracking-tight text-foreground">
+                            {entry.description}
+                          </td>
+                          <td className="px-4 py-4 text-right font-black text-red-500 text-[12px]">
+                            Rp {entry.amount.toLocaleString('id-ID')}
+                          </td>
+                        </tr>
+                      ))}
+                    {journal.filter(entry => entry.type === 'EXPENSE').length === 0 && (
+                      <tr>
+                        <td colSpan={4} className="px-4 py-12 text-center text-muted-foreground italic">
+                          Tidak ada data pengeluaran untuk periode ini.
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
@@ -865,7 +995,9 @@ const Reports: React.FC = () => {
       {/* Hidden Print Area */}
       {isPrinting && (
         <div className="fixed inset-0 z-[9999] bg-white overflow-y-auto">
-          {printContent}
+          <div id="report-print-area">
+            {printContent}
+          </div>
         </div>
       )}
     </div>

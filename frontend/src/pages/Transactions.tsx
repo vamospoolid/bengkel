@@ -3,8 +3,10 @@ import {
   Search, FileText, ChevronRight, X, RotateCcw, AlertCircle, 
   CheckCircle2, User, Calendar, CreditCard, Loader2, 
   ShoppingCart, Filter, RefreshCw, ChevronDown, Printer, Wrench,
-  Minus, Plus, MessageSquare
+  Minus, Plus, MessageSquare, Download
 } from 'lucide-react';
+import jsPDF from 'jspdf';
+import html2canvas from 'html2canvas';
 import api from '../api';
 import Receipt from '../components/Receipt';
 
@@ -51,6 +53,7 @@ const Transactions: React.FC = () => {
   const [returnQuantities, setReturnQuantities] = useState<Record<string, number>>({});
   const [returnReason, setReturnReason] = useState('');
   const [returnMessage, setReturnMessage] = useState<{type: 'success'|'error', text: string} | null>(null);
+  const [isExportingPDF, setIsExportingPDF] = useState(false);
 
   // Filters State
   const [dateFilter, setDateFilter] = useState<'all' | 'today' | 'week' | 'month'>('all');
@@ -183,45 +186,24 @@ const Transactions: React.FC = () => {
     tx.customer?.name.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const handlePrint = (tx: Transaction) => {
-    const printContent = document.getElementById('receipt-print-hidden');
-    if (!printContent) return;
-
-    // Jika di Electron, gunakan silent print jika printer dipilih
+  const handlePrint = async (tx: Transaction) => {
+    // 1. Silent Print (Thermal Printer)
     const defaultPrinter = localStorage.getItem('default_printer');
-    if ((window as any).electron && defaultPrinter) {
-      (window as any).electron.invoke('print-raw', defaultPrinter, { ...tx, isCopy: true }, workshopProfile);
-      return;
-    }
     
-    const windowPrint = window.open('', '', 'left=0,top=0,width=800,height=900,toolbar=0,scrollbars=0,status=0');
-    if (!windowPrint) return;
-    // ... rest of windowPrint logic
-    windowPrint.document.write(`
-      <html>
-        <head>
-          <title>Nota - ${tx.invoiceNo}</title>
-          <script src="https://cdn.tailwindcss.com"></script>
-          <style>
-            @media print {
-              body { margin: 0; padding: 0; }
-              #receipt-print { width: 80mm; box-shadow: none !important; border: none !important; }
-            }
-          </style>
-        </head>
-        <body class="bg-white">
-          ${printContent.outerHTML.replace('receipt-print-hidden', 'receipt-print')}
-          <script>
-            window.onload = function() {
-              window.print();
-              window.close();
-            };
-          </script>
-        </body>
-      </html>
-    `);
-    windowPrint.document.close();
-    windowPrint.focus();
+    if ((window as any).electron && defaultPrinter) {
+      // Direct print via Electron
+      (window as any).electron.invoke('print-raw', defaultPrinter, { ...tx, isCopy: true }, workshopProfile);
+    } else {
+      // Print via Backend (Silent)
+      try {
+        await api.post('/print/receipt', { transactionId: tx.id });
+        alert('Perintah Cetak Ulang dikirim ke Printer!');
+      } catch (err: any) {
+        console.error('Print failed:', err);
+        // Fallback to browser print if backend print fails
+        handleBrowserPrint(tx);
+      }
+    }
   };
 
   const sendWA = (tx: Transaction) => {
@@ -239,28 +221,44 @@ const Transactions: React.FC = () => {
     window.open(url, '_blank');
   };
 
-  // Bug #5 fix: separate browser print function (was using same handlePrint as thermal)
-  const handleBrowserPrint = (tx: Transaction) => {
+  // Export to PDF and Download
+  const handleBrowserPrint = async (tx: Transaction) => {
     const printContent = document.getElementById('receipt-print-hidden');
     if (!printContent) return;
 
-    const windowPrint = window.open('', '', 'left=0,top=0,width=800,height=900,toolbar=0,scrollbars=0,status=0');
-    if (!windowPrint) return;
-    windowPrint.document.write(`
-      <html>
-        <head>
-          <title>Nota - ${tx.invoiceNo}</title>
-          <script src="https://cdn.tailwindcss.com"><\/script>
-          <style>@media print { body { margin: 0; } #receipt-print { width: 80mm; box-shadow: none !important; border: none !important; } }<\/style>
-        </head>
-        <body class="bg-white">
-          ${printContent.outerHTML.replace('receipt-print-hidden', 'receipt-print')}
-          <script>window.onload = function() { window.print(); window.close(); };<\/script>
-        </body>
-      </html>
-    `);
-    windowPrint.document.close();
-    windowPrint.focus();
+    setIsExportingPDF(true);
+    try {
+      // Small delay to ensure any dynamic elements (like barcode) are rendered
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      const canvas = await html2canvas(printContent, {
+        scale: 3, // Higher scale for better PDF quality
+        useCORS: true,
+        logging: false,
+        backgroundColor: '#ffffff'
+      });
+
+      const imgData = canvas.toDataURL('image/png');
+      
+      // Receipt is 75mm - 80mm wide. Standard thermal height varies.
+      // We'll use the canvas aspect ratio to determine height.
+      const pdfWidth = 80;
+      const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+
+      const pdf = new jsPDF({
+        orientation: 'portrait',
+        unit: 'mm',
+        format: [pdfWidth, pdfHeight]
+      });
+
+      pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+      pdf.save(`NOTA-${tx.invoiceNo}.pdf`);
+    } catch (err) {
+      console.error('PDF Export failed:', err);
+      alert('Gagal membuat PDF. Coba gunakan fitur print browser biasa.');
+    } finally {
+      setIsExportingPDF(false);
+    }
   };
 
   return (
@@ -361,7 +359,9 @@ const Transactions: React.FC = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
-                {filteredTransactions.map((tx) => (
+                {filteredTransactions
+                  .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+                  .map((tx) => (
                   <tr 
                     key={tx.id} 
                     className="hover:bg-primary/[0.02] transition-colors cursor-pointer group"
@@ -549,7 +549,7 @@ const Transactions: React.FC = () => {
                 )}
                 <button 
                   onClick={() => handlePrint(selectedTx)}
-                  className="flex-1 bg-primary text-white py-5 rounded-[1.5rem] font-black text-xs uppercase tracking-widest shadow-lg shadow-primary/20 transition-all flex items-center justify-center gap-3"
+                  className="flex-1 bg-primary text-white py-5 rounded-[1.5rem] font-black text-xs uppercase tracking-widest shadow-lg shadow-primary/20 hover:scale-[1.02] active:scale-95 hover:shadow-primary/40 hover:brightness-110 transition-all flex items-center justify-center gap-3"
                   title="Cetak Silent ke Printer Kasir (Thermal)"
                 >
                   <Printer className="w-5 h-5" /> CETAK ULANG (SILENT)
@@ -557,10 +557,11 @@ const Transactions: React.FC = () => {
                 {/* Bug #5 fix: was calling handlePrint (thermal) — now calls handleBrowserPrint (browser/PDF) */}
                 <button 
                   onClick={() => handleBrowserPrint(selectedTx)}
-                  className="bg-muted border border-border hover:bg-muted-foreground/10 p-5 rounded-[1.5rem] text-muted-foreground transition-all"
-                  title="Cetak via Browser (A4/PDF)"
+                  disabled={isExportingPDF}
+                  className="bg-muted border border-border hover:bg-muted-foreground/10 p-5 rounded-[1.5rem] text-muted-foreground transition-all flex items-center justify-center disabled:opacity-50"
+                  title="Unduh Nota (PDF)"
                 >
-                  <FileText className="w-5 h-5" />
+                  {isExportingPDF ? <Loader2 className="w-5 h-5 animate-spin" /> : <Download className="w-5 h-5" />}
                 </button>
                 <button 
                   onClick={() => sendWA(selectedTx)}

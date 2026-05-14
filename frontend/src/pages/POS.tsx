@@ -47,6 +47,7 @@ interface CartItem {
   priceTier?: 'normal' | 'grosir' | 'bengkel';
   mechanicId?: string;
   isMechanicFault?: boolean;
+  currentStock?: number;
 }
 
 interface WorkshopProfile {
@@ -315,9 +316,17 @@ const POS: React.FC = () => {
       const existing = prev.find(i => i.id === item.id);
       const tier = getTierFromCustomerType(customerType);
       if (existing) {
-        return prev.map(i => i.id === item.id ? { ...i, quantity: i.quantity + 1 } : i);
+        return prev.map(i => i.id === item.id ? { ...i, quantity: i.quantity + 1, currentStock: type === 'part' ? item.stock : i.currentStock } : i);
       }
-      return [...prev, { id: item.id, name: item.name, price: getPrice(item, type, tier), quantity: 1, type, priceTier: tier }];
+      return [...prev, { 
+        id: item.id, 
+        name: item.name, 
+        price: getPrice(item, type, tier), 
+        quantity: 1, 
+        type, 
+        priceTier: tier,
+        currentStock: type === 'part' ? item.stock : undefined
+      }];
     });
   };
 
@@ -390,7 +399,7 @@ const POS: React.FC = () => {
     setPullError(null);
     try {
       const encoded = encodeURIComponent(plate);
-      const res = await api.get(`/workshop/search/\${encoded}`);
+      const res = await api.get(`/workshop/search/${encoded}`);
       const task = res.data;
 
       const serviceItems: CartItem[] = (task.serviceDetails || []).map((svc: any) => ({
@@ -416,6 +425,12 @@ const POS: React.FC = () => {
       setPulledWorkOrder(task);
 
       if (task.mode === 'WORKSHOP') {
+        // Auto-select customer if name matches
+        if (task.customerName) {
+          const found = customers.find(c => c.name.toLowerCase() === task.customerName.toLowerCase());
+          if (found) setSelectedCustomerId(found.id);
+        }
+
         if (serviceItems.length === 0 && partItems.length === 0) {
           console.warn('Workshop found but no items!');
           setPullError('Unit ditemukan tapi belum ada jasa/barang yang dipilih di bengkel.');
@@ -425,6 +440,14 @@ const POS: React.FC = () => {
           setCart([...serviceItems, ...partItems]);
           alert(`Berhasil menarik ${serviceItems.length} Jasa & ${partItems.length} Part dari bengkel!`);
         }
+      } else if (task.mode === 'VEHICLE') {
+        // Also auto-select customer for existing vehicles
+        if (task.customerName) {
+          const found = customers.find(c => c.name.toLowerCase() === task.customerName.toLowerCase());
+          if (found) setSelectedCustomerId(found.id);
+        }
+        setCart([]);
+        setPullError(null);
       } else {
         setCart([]);
         setPullError(null);
@@ -459,7 +482,22 @@ const POS: React.FC = () => {
   };
   
   const handleCheckout = () => {
-    if (cart.length === 0) return;
+    // Check for stock availability before opening payment modal
+    const outOfStockItems = cart.filter(item => 
+      item.type === 'part' && 
+      typeof item.currentStock === 'number' && 
+      (item.currentStock <= 0 || item.quantity > item.currentStock)
+    );
+
+    if (outOfStockItems.length > 0) {
+      const names = outOfStockItems.map(i => i.name).join(', ');
+      toast.error(`Beberapa barang memiliki stok yang tidak mencukupi: ${names}`, {
+        duration: 4000,
+        position: 'top-center'
+      });
+      return;
+    }
+
     setShowPaymentModal(true);
   };
 
@@ -470,8 +508,10 @@ const POS: React.FC = () => {
     const checkoutData = {
       id: localTransactionId,
       cart,
-      plateNumber: (customerType === 'Umum' && plateNumber.trim()) ? plateNumber.trim() : null,
+      plateNumber: plateNumber.trim() || null,
       customerId: selectedCustomerId || null,
+      customerName: pulledWorkOrder?.customerName || customerSearchTerm || null,
+      customerWA: customerWA.trim() || null,
       totalAmount: Number(total),
       tax: Number(tax),
       discount: Number(discount),
@@ -507,13 +547,13 @@ const POS: React.FC = () => {
         saveToSyncQueue('/pos/checkout', checkoutData);
         const offlineTransaction = {
           id: localTransactionId,
-          invoiceNo: `OFFLINE-\${localTransactionId.substring(0, 8)}`,
+          invoiceNo: `OFFLINE-${localTransactionId.substring(0, 8)}`,
           createdAt: new Date().toISOString()
         };
         completeLocalCheckout(offlineTransaction, true);
       } else {
         const msg = error.response?.data?.error || error.message || 'Gagal memproses pembayaran.';
-        alert(`ERROR: \${msg}`);
+        alert(`ERROR: ${msg}`);
       }
     } finally {
       setIsCheckoutProcessing(false);
@@ -628,11 +668,11 @@ const POS: React.FC = () => {
     windowPrint.document.write(`
       <html>
         <head>
-          <title>Nota - \${lastTransaction?.invoiceNo}</title>
+          <title>Nota - ${lastTransaction?.invoiceNo}</title>
           <script src=\"https://cdn.tailwindcss.com\"></script>
         </head>
         <body>
-          \${printContent.outerHTML}
+          ${printContent.outerHTML}
           <script>window.onload = function() { window.print(); window.close(); };</script>
         </body>
       </html>
@@ -661,13 +701,13 @@ const POS: React.FC = () => {
           <div className="flex items-center gap-2 bg-muted/50 p-1.5 rounded-2xl border border-border shrink-0">
             <button 
               onClick={() => setActiveTab('parts')}
-              className={`px-6 py-2.5 rounded-xl font-black text-xs uppercase tracking-widest transition-all \${activeTab === 'parts' ? 'bg-primary text-white shadow-lg' : 'text-muted-foreground hover:bg-muted'}`}
+              className={`px-6 py-2.5 rounded-xl font-black text-xs uppercase tracking-widest transition-all ${activeTab === 'parts' ? 'bg-primary text-white shadow-lg' : 'text-muted-foreground hover:bg-muted'}`}
             >
               Suku Cadang
             </button>
             <button 
               onClick={() => setActiveTab('services')}
-              className={`px-6 py-2.5 rounded-xl font-black text-xs uppercase tracking-widest transition-all \${activeTab === 'services' ? 'bg-primary text-white shadow-lg' : 'text-muted-foreground hover:bg-muted'}`}
+              className={`px-6 py-2.5 rounded-xl font-black text-xs uppercase tracking-widest transition-all ${activeTab === 'services' ? 'bg-primary text-white shadow-lg' : 'text-muted-foreground hover:bg-muted'}`}
             >
               Layanan Jasa
             </button>
@@ -714,7 +754,7 @@ const POS: React.FC = () => {
             ) : error ? (
               <div className="h-full flex flex-col items-center justify-center gap-4 text-center px-10">
                 <AlertCircle className="w-12 h-12 text-red-500" />
-                <p className="font-bold text-red-500">\${error}</p>
+                <p className="font-bold text-red-500">${error}</p>
                 <button onClick={fetchData} className="flex items-center gap-2 px-6 py-2 bg-primary text-white rounded-xl text-sm font-black shadow-lg shadow-primary/20 hover:scale-105 transition-all">
                   <RefreshCw className="w-4 h-4" /> COBA LAGI
                 </button>
@@ -731,7 +771,7 @@ const POS: React.FC = () => {
                         <div 
                           key={part.id} 
                           onClick={() => addToCart(part, 'part')}
-                          className={`group relative glass-card p-4 rounded-3xl border transition-all cursor-pointer hover:scale-[1.02] active:scale-95 \${
+                          className={`group relative glass-card p-4 rounded-3xl border transition-all cursor-pointer hover:scale-[1.02] active:scale-95 ${
                             inCartQty > 0 ? 'border-primary ring-2 ring-primary/20 bg-primary/5' : 'border-border hover:border-primary/50'
                           }`}
                         >
@@ -744,7 +784,7 @@ const POS: React.FC = () => {
                             <div>
                               <div className="flex justify-between items-start gap-2 mb-1">
                                 <span className="text-[9px] font-black uppercase tracking-widest text-muted-foreground/60">{part.category}</span>
-                                <span className={`text-[9px] font-black px-2 py-0.5 rounded-md uppercase \${part.stock <= part.minStock ? 'bg-red-500/10 text-red-500' : 'bg-green-500/10 text-green-500'}`}>
+                                <span className={`text-[9px] font-black px-2 py-0.5 rounded-md uppercase ${part.stock <= part.minStock ? 'bg-red-500/10 text-red-500' : 'bg-green-500/10 text-green-500'}`}>
                                   Stok: {part.stock}
                                 </span>
                               </div>
@@ -786,7 +826,7 @@ const POS: React.FC = () => {
                         <div 
                           key={service.id} 
                           onClick={() => addToCart(service, 'service')}
-                          className={`group relative glass-card p-4 rounded-3xl border transition-all cursor-pointer hover:scale-[1.02] active:scale-95 \${
+                          className={`group relative glass-card p-4 rounded-3xl border transition-all cursor-pointer hover:scale-[1.02] active:scale-95 ${
                             inCartQty > 0 ? 'border-blue-500 ring-2 ring-blue-500/20 bg-blue-500/5' : 'border-border hover:border-blue-500/50'
                           }`}
                         >
@@ -863,79 +903,91 @@ const POS: React.FC = () => {
             {/* Input Section */}
             <div className="space-y-3">
               {customerType === 'Umum' && (
-                <div className="flex items-center gap-2 px-1">
-                  <input type="checkbox" id="only-shop" checked={onlyShopping} onChange={(e) => setOnlyShopping(e.target.checked)} className="w-3 h-3 accent-primary" />
-                  <label htmlFor="only-shop" className="text-[10px] font-black text-muted-foreground uppercase tracking-widest cursor-pointer">Hanya Belanja (Tanpa Plat)</label>
+                <div className="flex items-center justify-between px-1">
+                  <div className="flex items-center gap-2">
+                    <input type="checkbox" id="only-shop" checked={onlyShopping} onChange={(e) => setOnlyShopping(e.target.checked)} className="w-3 h-3 accent-primary" />
+                    <label htmlFor="only-shop" className="text-[9px] font-black text-muted-foreground uppercase tracking-widest cursor-pointer">Tanpa Plat</label>
+                  </div>
+                  {!onlyShopping && (
+                    <button 
+                      onClick={pullFromWorkshop} 
+                      className="text-[8px] font-black text-primary hover:text-primary/70 transition-all flex items-center gap-1.5 uppercase"
+                    >
+                      <Wrench className="w-3 h-3" />
+                      Ambil Data Bengkel
+                    </button>
+                  )}
                 </div>
               )}
 
-              {customerType === 'Umum' && !onlyShopping ? (
-                <div className="relative">
-                  <Wrench className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-primary" />
-                  <input 
-                    type="text" 
-                    readOnly
-                    value={plateNumber}
-                    placeholder="PILIH DARI BENGKEL" 
-                    className="w-full bg-primary/5 border border-primary/20 rounded-2xl pl-12 pr-12 py-4 font-black uppercase text-xs focus:outline-none"
-                  />
-                  <button onClick={pullFromWorkshop} className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-primary transition-colors">
-                    {isSearching ? <Loader2 className="w-4 h-4 animate-spin" /> : <Wrench className="w-4 h-4" />}
-                  </button>
-                </div>
-              ) : (
-                <div className="space-y-3 animate-in slide-in-from-top-2 duration-300">
-                  <div className="relative">
-                    <UserIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                    <input 
-                      type="text" 
-                      placeholder={customerType === 'Umum' ? "NAMA PELANGGAN (OPSIONAL)" : "NAMA PELANGGAN / TOKO"} 
-                      className="w-full bg-muted border border-border rounded-2xl pl-12 pr-6 py-4 font-black uppercase text-xs focus:outline-none focus:ring-4 focus:ring-primary/5 transition-all"
-                      value={customerSearchTerm}
-                      onChange={(e) => {
-                        setCustomerSearchTerm(e.target.value);
-                        setShowCustomerSuggestions(true);
-                      }}
-                    />
-                    {showCustomerSuggestions && customerSearchTerm.length >= 2 && (
-                      <div className="absolute top-full left-0 right-0 mt-2 bg-card border border-border rounded-3xl shadow-2xl z-[100] overflow-hidden">
-                        {customers
-                          .filter(c => c.name.toLowerCase().includes(customerSearchTerm.toLowerCase()))
-                          .map(c => (
-                            <button 
-                              key={c.id} 
-                              className="w-full px-6 py-4 text-left hover:bg-muted border-b border-border/50 flex justify-between items-center group transition-all"
-                              onClick={() => {
-                                setSelectedCustomerId(c.id);
-                                setCustomerSearchTerm(c.name);
-                                setCustomerWA((c as any).whatsapp || (c as any).phone || '');
-                                setShowCustomerSuggestions(false);
-                              }}
-                            >
-                              <div>
-                                <p className="text-sm font-black text-foreground group-hover:text-primary transition-colors uppercase tracking-tight">{c.name}</p>
-                                <p className="text-[10px] text-muted-foreground font-bold uppercase">{c.type}</p>
-                              </div>
-                              <CheckCircle2 className="w-4 h-4 text-primary opacity-0 group-hover:opacity-100 transition-all" />
-                            </button>
-                          ))
-                        }
-                      </div>
-                    )}
-                  </div>
+              <div className="space-y-2 animate-in slide-in-from-top-2 duration-300">
+                {/* Horizontal Grid for Plate and Phone */}
+                <div className={`grid gap-2 ${customerType === 'Umum' && !onlyShopping ? 'grid-cols-2' : 'grid-cols-1'}`}>
+                  {customerType === 'Umum' && !onlyShopping && (
+                    <div className="relative">
+                      <ScanLine className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-primary/50" />
+                      <input 
+                        type="text" 
+                        value={plateNumber}
+                        onChange={(e) => setPlateNumber(e.target.value.toUpperCase())}
+                        placeholder="PLAT NOMOR" 
+                        className="w-full bg-primary/5 border border-primary/10 rounded-xl pl-9 pr-3 py-2.5 font-black uppercase text-[10px] focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all"
+                      />
+                    </div>
+                  )}
 
                   <div className="relative">
-                    <Smartphone className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                    <Smartphone className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground/50" />
                     <input 
                       type="text" 
-                      placeholder="NO WHATSAPP (62...)" 
-                      className="w-full bg-muted border border-border rounded-2xl pl-12 pr-6 py-4 font-black uppercase text-xs focus:outline-none focus:ring-4 focus:ring-primary/5 transition-all"
+                      placeholder="WHATSAPP (62...)" 
+                      className="w-full bg-muted/50 border border-border rounded-xl pl-9 pr-3 py-2.5 font-black uppercase text-[10px] focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all"
                       value={customerWA}
                       onChange={(e) => setCustomerWA(e.target.value)}
                     />
                   </div>
                 </div>
-              )}
+
+                {/* Name Field (Full Width) */}
+                <div className="relative">
+                  <UserIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground/50" />
+                  <input 
+                    type="text" 
+                    placeholder={customerType === 'Umum' ? "NAMA PELANGGAN (OPSIONAL)" : "NAMA PELANGGAN / TOKO"} 
+                    className="w-full bg-muted/50 border border-border rounded-xl pl-9 pr-3 py-2.5 font-black uppercase text-[10px] focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all"
+                    value={customerSearchTerm}
+                    onChange={(e) => {
+                      setCustomerSearchTerm(e.target.value);
+                      setShowCustomerSuggestions(true);
+                    }}
+                  />
+                  {showCustomerSuggestions && customerSearchTerm.length >= 2 && (
+                    <div className="absolute top-full left-0 right-0 mt-1 bg-card border border-border rounded-2xl shadow-2xl z-[100] overflow-hidden">
+                      {customers
+                        .filter(c => c.name.toLowerCase().includes(customerSearchTerm.toLowerCase()))
+                        .map(c => (
+                          <button 
+                            key={c.id} 
+                            className="w-full px-4 py-2.5 text-left hover:bg-muted border-b border-border/50 flex justify-between items-center group transition-all"
+                            onClick={() => {
+                              setSelectedCustomerId(c.id);
+                              setCustomerSearchTerm(c.name);
+                              setCustomerWA((c as any).whatsapp || (c as any).phone || '');
+                              setShowCustomerSuggestions(false);
+                            }}
+                          >
+                            <div>
+                              <p className="text-[10px] font-black text-foreground group-hover:text-primary transition-colors uppercase tracking-tight">{c.name}</p>
+                              <p className="text-[8px] text-muted-foreground font-bold uppercase">{c.type}</p>
+                            </div>
+                            <CheckCircle2 className="w-3 h-3 text-primary opacity-0 group-hover:opacity-100 transition-all" />
+                          </button>
+                        ))
+                      }
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -958,22 +1010,31 @@ const POS: React.FC = () => {
               <tbody className="divide-y divide-dashed divide-border/30">
                 {cart.map(item => (
                   <tr key={item.id} className="group hover:bg-primary/[0.02]">
-                    <td className="py-3 pr-2">
-                      <div className="flex flex-col gap-1">
-                        <div className="flex items-start justify-between">
-                          <span className="text-[13px] font-bold text-foreground leading-tight line-clamp-2">{item.name}</span>
+                    <td className="py-4 pr-4">
+                      <div className="flex flex-col gap-1.5">
+                        <div className="flex flex-col gap-0.5">
+                          <span className="text-[12px] font-black text-foreground leading-tight line-clamp-2 uppercase tracking-tight">{item.name}</span>
+                          {item.type === 'part' && (typeof item.currentStock === 'number') && (
+                            <div className="flex items-center gap-1 mt-0.5">
+                              {item.currentStock <= 0 ? (
+                                <span className="text-[7px] font-black bg-red-500 text-white px-2 py-0.5 rounded-md uppercase animate-pulse">Stok Habis</span>
+                              ) : item.quantity > item.currentStock ? (
+                                <span className="text-[7px] font-black bg-orange-500 text-white px-2 py-0.5 rounded-md uppercase">Stok Kurang ({item.currentStock})</span>
+                              ) : null}
+                            </div>
+                          )}
                         </div>
-                        <div className="flex items-center gap-1.5">
-                           <span className={`text-[7px] font-black uppercase px-1 py-0.5 rounded ${item.type === 'part' ? 'bg-orange-500/10 text-orange-500' : 'bg-blue-500/10 text-blue-500'}`}>
+                        <div className="flex items-center gap-2">
+                           <span className={`text-[7px] font-black uppercase px-1.5 py-0.5 rounded-md border ${item.type === 'part' ? 'bg-orange-500/5 border-orange-500/20 text-orange-500' : 'bg-blue-500/5 border-blue-500/20 text-blue-500'}`}>
                               {item.type === 'part' ? 'PARTS' : 'SERVIS'}
                            </span>
                            {item.type === 'part' && (
-                             <div className="flex gap-0.5">
+                             <div className="flex bg-muted/50 p-0.5 rounded-md border border-border/50">
                                {(['normal', 'grosir', 'bengkel'] as const).map(tier => (
                                  <button 
                                    key={tier} 
                                    onClick={() => updatePriceTier(item.id, tier)}
-                                   className={`w-3.5 h-3.5 flex items-center justify-center rounded text-[6px] font-black border ${item.priceTier === tier ? 'bg-primary border-primary text-white' : 'bg-transparent border-border text-muted-foreground'}`}
+                                   className={`w-4 h-4 flex items-center justify-center rounded-sm text-[6px] font-black transition-all ${item.priceTier === tier ? 'bg-primary text-white shadow-sm' : 'text-muted-foreground hover:bg-muted'}`}
                                  >
                                    {tier[0].toUpperCase()}
                                  </button>
@@ -984,28 +1045,26 @@ const POS: React.FC = () => {
                              <select 
                                value={item.mechanicId || ''} 
                                onChange={(e) => updateMechanic(item.id, e.target.value)} 
-                               className="bg-muted border border-border rounded px-1 py-0.5 text-[7px] font-bold outline-none focus:border-primary max-w-[80px] truncate"
+                               className="bg-muted border border-border rounded-md px-1.5 py-0.5 text-[7px] font-black uppercase outline-none focus:border-primary max-w-[100px] truncate"
                              >
-                               <option value="">-- Mekanik --</option>
+                               <option value="">Pilih Mekanik</option>
                                {mechanics.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
                              </select>
                            )}
                         </div>
                       </div>
                     </td>
-                    <td className="py-3">
-                      <div className="flex flex-col items-center gap-1">
-                        <div className="flex items-center gap-1">
-                          <button onClick={() => updateQuantity(item.id, item.quantity - 1)} className="p-1 hover:text-red-500"><Minus className="w-3 h-3" /></button>
-                          <span className="text-[12px] font-black">{item.quantity}</span>
-                          <button onClick={() => updateQuantity(item.id, item.quantity + 1)} className="p-1 hover:text-primary"><Plus className="w-3 h-3" /></button>
-                        </div>
+                    <td className="py-4">
+                      <div className="flex items-center justify-center bg-muted/30 rounded-xl p-1 border border-border/30">
+                        <button onClick={() => updateQuantity(item.id, item.quantity - 1)} className="p-1 hover:text-red-500 transition-colors"><Minus className="w-3 h-3" /></button>
+                        <span className="w-6 text-center text-[11px] font-black">{item.quantity}</span>
+                        <button onClick={() => updateQuantity(item.id, item.quantity + 1)} className="p-1 hover:text-primary transition-colors"><Plus className="w-3 h-3" /></button>
                       </div>
                     </td>
-                    <td className="py-3 text-right">
+                    <td className="py-4 text-right">
                       <div className="flex flex-col items-end gap-1">
-                        <div className="flex items-center gap-1">
-                          <span className="text-[9px] font-bold text-muted-foreground">Rp</span>
+                        <div className="flex items-baseline gap-1">
+                          <span className="text-[8px] font-black text-muted-foreground uppercase">Rp</span>
                           <input 
                             type="number"
                             value={item.price}
@@ -1013,15 +1072,17 @@ const POS: React.FC = () => {
                               const newPrice = Number(e.target.value);
                               setCart(prev => prev.map(i => i.id === item.id ? { ...i, price: newPrice } : i));
                             }}
-                            className="w-16 bg-transparent border-b border-border/20 hover:border-primary/50 focus:border-primary text-right font-black text-[11px] p-0 focus:outline-none transition-all"
+                            className="w-14 bg-transparent border-b border-border/20 hover:border-primary/50 focus:border-primary text-right font-black text-[10px] p-0 focus:outline-none transition-all"
                           />
                         </div>
-                        <button onClick={() => setCart(prev => prev.filter(i => i.id !== item.id))} className="opacity-0 group-hover:opacity-100 transition-all text-red-400 hover:text-red-600">
-                          <Trash2 className="w-3 h-3" />
-                        </button>
-                        <span className={`text-[11px] font-black ${item.isMechanicFault ? 'text-red-500 line-through' : 'text-primary'}`}>
-                          Rp {(item.price * item.quantity).toLocaleString()}
-                        </span>
+                        <div className="flex items-center gap-2">
+                          <button onClick={() => setCart(prev => prev.filter(i => i.id !== item.id))} className="text-red-400 hover:text-red-600 transition-colors opacity-0 group-hover:opacity-100">
+                            <Trash2 className="w-3 h-3" />
+                          </button>
+                          <span className={`text-[12px] font-black italic ${item.isMechanicFault ? 'text-red-500 line-through' : 'text-primary'}`}>
+                            Rp {(item.price * item.quantity).toLocaleString()}
+                          </span>
+                        </div>
                       </div>
                     </td>
                   </tr>

@@ -88,20 +88,9 @@ ipcMain.handle('print-raw', async (event, printerName, transaction, workshop) =>
     try {
       const cleanPrinterName = printerName.trim();
       
-      let w = workshop;
-      if (!w) {
-        try {
-          const { PrismaClient } = require('@prisma/client');
-          const prisma = new PrismaClient();
-          const dbWorkshop = await prisma.workshop.findFirst();
-          if (dbWorkshop) w = dbWorkshop;
-          else w = { name: 'JAKARTA MOTOR' };
-          await prisma.$disconnect();
-        } catch (err) {
-          console.error("Prisma fetch failed for print-raw, using default", err);
-          w = { name: 'JAKARTA MOTOR' };
-        }
-      }
+      // Workshop info is now passed entirely from the frontend
+      // to avoid needing a local database on the Electron side
+      let w = workshop || { name: 'JAKARTA MOTOR', address: '', phone: '' };
       
       const printer = new ThermalPrinter({
         type: PrinterTypes.EPSON,

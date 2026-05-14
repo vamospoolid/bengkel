@@ -9,6 +9,7 @@ interface DashboardProps {
 const Dashboard: React.FC<DashboardProps> = ({ setActivePage }) => {
   const [data, setData] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     fetchDashboard();
@@ -17,10 +18,12 @@ const Dashboard: React.FC<DashboardProps> = ({ setActivePage }) => {
   const fetchDashboard = async () => {
     try {
       setIsLoading(true);
+      setError(null);
       const res = await api.get('/dashboard/summary');
       setData(res.data);
-    } catch (error) {
-      console.error('Failed to fetch dashboard', error);
+    } catch (err: any) {
+      console.error('Failed to fetch dashboard', err);
+      setError(err.response?.data?.error || 'Gagal mengambil ringkasan dashboard.');
     } finally {
       setIsLoading(false);
     }
@@ -40,11 +43,31 @@ const Dashboard: React.FC<DashboardProps> = ({ setActivePage }) => {
     }
   };
 
-  if (isLoading || !data) {
+  if (isLoading) {
     return (
-      <div className="h-full flex flex-col items-center justify-center gap-4">
+      <div className="h-full flex flex-col items-center justify-center gap-4 py-20">
         <Loader2 className="w-12 h-12 text-primary animate-spin" />
         <p className="text-sm font-black italic text-muted-foreground tracking-widest animate-pulse">SINKRONISASI DATA...</p>
+      </div>
+    );
+  }
+
+  if (error || !data) {
+    return (
+      <div className="h-full flex flex-col items-center justify-center gap-6 py-20 text-center px-10">
+        <div className="p-6 bg-red-500/10 rounded-full text-red-500 border border-red-500/20">
+          <AlertTriangle className="w-12 h-12" />
+        </div>
+        <div>
+           <h3 className="text-xl font-black uppercase tracking-tighter mb-2">Gagal Memuat Data</h3>
+           <p className="text-sm text-muted-foreground font-medium max-w-md">{error || 'Data dashboard tidak tersedia saat ini.'}</p>
+        </div>
+        <button 
+          onClick={fetchDashboard}
+          className="px-8 py-4 bg-primary text-white rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl shadow-primary/30 hover:scale-105 active:scale-95 transition-all"
+        >
+          COBA LAGI
+        </button>
       </div>
     );
   }
@@ -70,7 +93,7 @@ const Dashboard: React.FC<DashboardProps> = ({ setActivePage }) => {
 
       {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {data.stats.map((stat: any, idx: number) => {
+        {(data?.stats || []).map((stat: any, idx: number) => {
           const Icon = iconMap[stat.icon] || TrendingUp;
           const isClickable = stat.label.toUpperCase().includes('STOK') || stat.label.toUpperCase().includes('CADANG');
 
@@ -199,12 +222,14 @@ const Dashboard: React.FC<DashboardProps> = ({ setActivePage }) => {
                   <tr key={idx} className="group hover:bg-muted/20 transition-all">
                     <td className="py-5 px-2">
                       <div className="font-mono font-black text-sm text-primary group-hover:scale-105 transition-transform inline-block uppercase">
-                        {item.plate}
+                        {String(item.plate || '-')}
                       </div>
                     </td>
-                    <td className="py-5 px-2 text-xs font-bold text-zinc-300">{item.vehicle}</td>
-                    <td className="py-5 px-2 text-xs font-bold">{item.service}</td>
-                    <td className="py-5 px-2 text-xs font-medium text-muted-foreground">{item.mechanic}</td>
+                    <td className="py-5 px-2 text-xs font-bold text-zinc-300">{String(item.vehicle || '-')}</td>
+                    <td className="py-5 px-2 text-xs font-bold">
+                      {typeof item.service === 'string' ? item.service : (item.service?.name || 'Servis')}
+                    </td>
+                    <td className="py-5 px-2 text-xs font-medium text-muted-foreground">{String(item.mechanic || '-')}</td>
                     <td className="py-5 px-2 text-right">
                       <span className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest border shadow-sm ${
                         item.status === 'Berjalan' ? 'bg-blue-500/10 text-blue-500 border-blue-500/20' :

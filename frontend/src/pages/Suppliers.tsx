@@ -51,18 +51,38 @@ const Suppliers: React.FC = () => {
     setIsSaving(true);
     try {
       if (editingSupplier) {
-        // await api.patch(`/suppliers/${editingSupplier.id}`, formData);
-        alert('Fitur edit supplier segera hadir');
+        await api.patch(`/suppliers/${editingSupplier.id}`, formData);
       } else {
         await api.post('/suppliers', formData);
       }
       setShowAddModal(false);
+      setEditingSupplier(null);
       setFormData({ name: '', phone: '', address: '' });
       fetchSuppliers();
-    } catch (error) {
-      alert('Gagal menyimpan supplier.');
+    } catch (error: any) {
+      alert('Gagal menyimpan supplier: ' + (error.response?.data?.error || error.message));
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  const handleEditClick = (supplier: Supplier) => {
+    setEditingSupplier(supplier);
+    setFormData({
+      name: supplier.name,
+      phone: supplier.phone || '',
+      address: supplier.address || ''
+    });
+    setShowAddModal(true);
+  };
+
+  const handleDeleteSupplier = async (id: string) => {
+    if (!window.confirm('Apakah Anda yakin ingin menghapus supplier ini?')) return;
+    try {
+      await api.delete(`/suppliers/${id}`);
+      fetchSuppliers();
+    } catch (error: any) {
+      alert('Gagal menghapus supplier: ' + (error.response?.data?.error || error.message));
     }
   };
 
@@ -93,7 +113,7 @@ const Suppliers: React.FC = () => {
           ref={searchInputRef}
           type="text"
           placeholder="Cari nama supplier atau telepon..."
-          className="w-full bg-card/30 border border-border rounded-2xl pl-14 pr-6 py-4 focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all font-bold text-lg backdrop-blur-sm"
+          className="w-full bg-card/60 border border-border rounded-2xl pl-14 pr-6 py-4 focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all font-bold text-lg"
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
         />
@@ -140,8 +160,17 @@ const Suppliers: React.FC = () => {
                 <button className="flex-1 py-3 bg-muted border border-border rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-primary/10 hover:text-primary transition-all flex items-center justify-center gap-2">
                    <History className="w-4 h-4" /> Riwayat Belanja
                 </button>
-                <button className="p-3 bg-muted border border-border rounded-xl text-muted-foreground hover:text-blue-500 transition-all">
+                <button 
+                  onClick={() => handleEditClick(supplier)}
+                  className="p-3 bg-muted border border-border rounded-xl text-muted-foreground hover:text-blue-500 transition-all"
+                >
                   <Edit3 className="w-4 h-4" />
+                </button>
+                <button 
+                  onClick={() => handleDeleteSupplier(supplier.id)}
+                  className="p-3 bg-muted border border-border rounded-xl text-muted-foreground hover:text-red-500 transition-all"
+                >
+                  <Trash2 className="w-4 h-4" />
                 </button>
               </div>
             </div>
@@ -167,8 +196,12 @@ const Suppliers: React.FC = () => {
             <div className="flex items-center gap-4 mb-8">
                <div className="p-4 bg-primary/10 rounded-2xl text-primary"><Truck className="w-8 h-8" /></div>
                <div>
-                  <h3 className="text-2xl font-black uppercase tracking-tight leading-none mb-1">Daftarkan Supplier</h3>
-                  <p className="text-xs text-muted-foreground font-medium italic">Masukkan data lengkap pemasok barang.</p>
+                  <h3 className="text-2xl font-black uppercase tracking-tight leading-none mb-1">
+                    {editingSupplier ? 'Edit Data Supplier' : 'Daftarkan Supplier'}
+                  </h3>
+                  <p className="text-xs text-muted-foreground font-medium italic">
+                    {editingSupplier ? 'Perbarui data lengkap pemasok barang.' : 'Masukkan data lengkap pemasok barang.'}
+                  </p>
                </div>
             </div>
 
@@ -191,7 +224,9 @@ const Suppliers: React.FC = () => {
               <div className="flex gap-4 pt-4">
                 <button type="button" onClick={() => setShowAddModal(false)} className="flex-1 py-4 bg-muted border border-border rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-muted/70 transition-all">Batal</button>
                 <button type="submit" disabled={isSaving} className="flex-[2] py-4 bg-primary text-white rounded-2xl font-black shadow-xl shadow-primary/30 hover:scale-[1.02] active:scale-95 transition-all flex items-center justify-center gap-3">
-                  {isSaving ? <Loader2 className="w-5 h-5 animate-spin" /> : <><Plus className="w-5 h-5" /> Daftarkan Supplier</>}
+                  {isSaving ? <Loader2 className="w-5 h-5 animate-spin" /> : (
+                    editingSupplier ? <><Edit3 className="w-5 h-5" /> Simpan Perubahan</> : <><Plus className="w-5 h-5" /> Daftarkan Supplier</>
+                  )}
                 </button>
               </div>
             </form>

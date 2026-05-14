@@ -48,9 +48,10 @@ const StockLogs: React.FC = () => {
   };
 
   const filteredLogs = logs.filter(log => 
-    log.product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    log.product.barcode.includes(searchTerm) ||
-    log.description?.toLowerCase().includes(searchTerm.toLowerCase())
+    (log.product?.name?.toLowerCase().includes(searchTerm.toLowerCase())) ||
+    (log.product?.barcode?.includes(searchTerm)) ||
+    (log.description?.toLowerCase().includes(searchTerm.toLowerCase())) ||
+    (log.reference?.toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
   return (
@@ -118,8 +119,8 @@ const StockLogs: React.FC = () => {
                           <Package className="w-4 h-4 text-primary" />
                         </div>
                         <div>
-                          <p className="font-bold text-sm">{log.product.name}</p>
-                          <p className="text-[10px] text-muted-foreground font-mono">BC: {log.product.barcode}</p>
+                          <p className="font-bold text-sm">{log.product?.name || 'Produk Tidak Terdaftar'}</p>
+                          <p className="text-[10px] text-muted-foreground font-mono">BC: {log.product?.barcode || '-'}</p>
                         </div>
                       </div>
                     </td>
@@ -191,8 +192,8 @@ const StockLogs: React.FC = () => {
                   <Package className="w-6 h-6 text-primary" />
                 </div>
                 <div>
-                  <p className="text-sm font-black uppercase">{selectedLog.product.name}</p>
-                  <p className="text-[10px] font-mono text-muted-foreground font-bold tracking-widest">BC: {selectedLog.product.barcode}</p>
+                  <p className="text-sm font-black uppercase">{selectedLog.product?.name || 'Produk Terhapus'}</p>
+                  <p className="text-[10px] font-mono text-muted-foreground font-bold tracking-widest">BC: {selectedLog.product?.barcode || '-'}</p>
                 </div>
               </div>
 

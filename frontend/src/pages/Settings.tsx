@@ -40,7 +40,7 @@ const ListManager: React.FC<{
       setSaved(true);
       setTimeout(() => setSaved(false), 1500);
     } catch { alert('Gagal menyimpan.'); }
-    finally { setIsLoading(false); }
+    finally { setIsSaving(false); }
   };
 
   const handleAdd = () => {
@@ -418,7 +418,7 @@ const Settings: React.FC<{
   const handleTestPrinter = async () => {
     // Jika di Electron, tes printer lokal
     if ((window as any).electron) {
-      const defaultPrinter = localStorage.getItem('default_printer');
+      const defaultPrinter = selectedPrinter || localStorage.getItem('default_printer');
       if (!defaultPrinter) {
         alert('Silakan pilih printer lokal terlebih dahulu di bagian atas.');
         return;
@@ -473,12 +473,25 @@ const Settings: React.FC<{
         // If in Electron, fetch system printers
         if ((window as any).electron) {
           const ePrinters = await (window as any).electron.getPrinters();
-          setPrinters(ePrinters);
+          // Filter out virtual/system printers (Aggressive)
+          const physical = ePrinters.filter((p: any) => {
+            const name = p.name.toLowerCase();
+            return !name.includes('pdf') && 
+                   !name.includes('onenote') && 
+                   !name.includes('fax') &&
+                   !name.includes('microsoft') &&
+                   !name.includes('root print') &&
+                   !name.includes('writer');
+          });
+          setPrinters(physical);
         } else {
           // Fallback to backend printer list (legacy/server side)
           const res = await api.get('/print/list');
           setPrinters(res.data);
         }
+        
+        const localPrinter = localStorage.getItem('default_printer');
+        if (localPrinter) setSelectedPrinter(localPrinter);
 
         const settingRes = await api.get('/app-settings/thermal_printer');
         if (settingRes.data && settingRes.data.items && typeof settingRes.data.items === 'string') {
@@ -619,17 +632,24 @@ const Settings: React.FC<{
 
             <div className="space-y-6">
               {/* Printer Selection */}
+              {/* Printer Selection */}
               <div className="p-5 bg-primary/5 border border-primary/20 rounded-2xl space-y-4">
                 <div className="flex items-center justify-between">
                   <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">
                     {(window as any).electron ? 'Pilih Printer Desktop (Lokal)' : 'Pilih Printer Aktif (Server)'}
                   </label>
-                  {(window as any).electron && (
                   <button
                     onClick={async () => {
                       if ((window as any).electron) {
                         const ePrinters = await (window as any).electron.getPrinters();
-                        setPrinters(ePrinters);
+                        // Filter out virtual printers for cleaner UI
+                        const physical = ePrinters.filter((p: any) => 
+                          !p.name.toLowerCase().includes('pdf') && 
+                          !p.name.toLowerCase().includes('onenote') && 
+                          !p.name.toLowerCase().includes('fax') &&
+                          !p.name.toLowerCase().includes('microsoft')
+                        );
+                        setPrinters(physical);
                       } else {
                         const res = await api.get('/print/list');
                         setPrinters(res.data);
@@ -639,20 +659,17 @@ const Settings: React.FC<{
                   >
                     Refresh Daftar
                   </button>
-                  )}
                 </div>
 
                 <div className="relative group">
                   <Printer className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                   <select
                     className="w-full bg-card border border-border rounded-xl pl-12 pr-4 py-3 text-sm font-bold focus:ring-2 focus:ring-primary/30 outline-none appearance-none"
-                    value={(window as any).electron ? (localStorage.getItem('default_printer') || '') : selectedPrinter}
+                    value={selectedPrinter}
                     onChange={(e) => {
                       if ((window as any).electron) {
                         localStorage.setItem('default_printer', e.target.value);
-                        setSelectedPrinter(e.target.value); // Sync state for UI
-                        setSaveSuccess('Printer default disimpan di komputer ini.');
-                        setTimeout(() => setSaveSuccess(null), 3000);
+                        setSelectedPrinter(e.target.value);
                       } else {
                         setSelectedPrinter(e.target.value);
                       }
@@ -676,7 +693,10 @@ const Settings: React.FC<{
                   {['58mm', '80mm'].map(size => (
                     <button
                       key={size}
-                      onClick={() => setPrinterSize(size)}
+                      onClick={() => {
+                        setPrinterSize(size);
+                        localStorage.setItem('printer_size', size);
+                      }}
                       className={`py-4 rounded-2xl border-2 transition-all font-black ${printerSize === size ? 'border-primary bg-primary/10 text-primary shadow-lg shadow-primary/10' : 'border-border bg-muted/40 text-muted-foreground'}`}
                     >
                       {size}
@@ -689,11 +709,17 @@ const Settings: React.FC<{
               <div className="space-y-3 pt-2">
                 <button
                   onClick={async () => {
-                    try {
-                      await api.put('/app-settings/thermal_printer', { items: selectedPrinter });
-                    } catch (e) {
-                      console.log('Offline, not saving to server');
+                    // Save to local for immediate effect
+                    if (selectedPrinter) {
+                      localStorage.setItem('default_printer', selectedPrinter);
+                      localStorage.setItem('printer_size', printerSize);
                     }
+                    // Also save to server for sync
+                    try {
+                      await api.put('/app-settings/thermal_printer', { items: [selectedPrinter] });
+                      await api.put('/app-settings/printer_size', { items: [printerSize] });
+                    } catch (e) { console.log('Offline/Error saving to server'); }
+
                     setSaveSuccess('Konfigurasi Hardware Berhasil Disimpan!');
                     setTimeout(() => setSaveSuccess(null), 3000);
                   }}
@@ -704,16 +730,18 @@ const Settings: React.FC<{
 
                 <button
                   onClick={handleTestPrinter}
-                  className="w-full py-4 bg-blue-500/10 text-blue-500 border border-blue-500/30 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-blue-500 hover:text-white transition-all flex items-center justify-center gap-2"
+                  disabled={isTestingPrinter}
+                  className="w-full py-4 bg-blue-500/10 text-blue-500 border border-blue-500/30 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-blue-500 hover:text-white transition-all flex items-center justify-center gap-2 disabled:opacity-50"
                 >
-                  <Activity className="w-4 h-4" /> TES KONEKSI PRINTER
+                  {isTestingPrinter ? <Loader2 className="w-4 h-4 animate-spin" /> : <Activity className="w-4 h-4" />} 
+                  TES CETAK NOTA (TEST PAGE)
                 </button>
               </div>
 
               <div className="p-4 bg-blue-500/5 border border-blue-500/20 rounded-2xl">
                 <p className="text-[11px] text-blue-400 leading-relaxed font-medium">
                   <strong>Info:</strong> {(window as any).electron
-                    ? 'Aplikasi menggunakan jalur lokal (Direct Print). Pastikan printer terhubung via USB.'
+                    ? 'Printer yang muncul telah difilter agar hanya menampilkan printer fisik. Gunakan "TES CETAK" untuk memastikan koneksi kabel USB ok.'
                     : 'Aplikasi menggunakan jalur server. Printer harus di-share ke jaringan.'}
                 </p>
               </div>

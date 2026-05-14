@@ -111,7 +111,7 @@ const PurchaseSupplier: React.FC = () => {
         barcode: product.barcode,
         currentStock: product.stock,
         quantity: 1,
-        purchasePrice: product.purchasePrice
+        purchasePrice: product.purchasePrice || 0
       }]);
     }
     setSearchTerm('');
@@ -506,7 +506,8 @@ const PurchaseSupplier: React.FC = () => {
                             ref={el => priceRefs.current[item.productId] = el}
                             type="number" 
                             className="w-full bg-background border-2 border-border rounded-xl pl-10 pr-4 py-2.5 text-right text-sm font-black focus:outline-none focus:border-primary transition-all text-foreground shadow-inner"
-                            value={item.purchasePrice || ''}
+                            value={item.purchasePrice}
+                            placeholder={String(allProducts.find(p => p.id === item.productId)?.purchasePrice || 0)}
                             onChange={(e) => {
                               const val = parseInt(e.target.value);
                               updateItem(item.productId, 'purchasePrice', isNaN(val) ? 0 : val);

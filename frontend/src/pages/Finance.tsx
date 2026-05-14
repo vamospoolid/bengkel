@@ -38,7 +38,7 @@ const Finance: React.FC<FinanceProps> = ({ activeTab = 'finance' }) => {
     category: '',
     amount: 0,
     description: '',
-    date: new Date().toISOString().split('T')[0]
+    date: new Date().toLocaleDateString('en-CA') // YYYY-MM-DD in local time
   });
 
   const searchInputRef = useRef<HTMLInputElement>(null);
@@ -79,7 +79,7 @@ const Finance: React.FC<FinanceProps> = ({ activeTab = 'finance' }) => {
         category: '', 
         amount: 0, 
         description: '', 
-        date: new Date().toISOString().split('T')[0] 
+        date: new Date().toLocaleDateString('en-CA') 
       });
       fetchRecords();
     } catch (error) {
@@ -331,7 +331,9 @@ const Finance: React.FC<FinanceProps> = ({ activeTab = 'finance' }) => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
-                {filteredRecords.map((record) => (
+                {filteredRecords
+                  .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+                  .map((record) => (
                   <tr key={record.id} className="hover:bg-primary/[0.02] transition-colors group">
                     <td className="px-10 py-6">
                       <div className="flex items-center gap-4">

@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { Search, Plus, Filter, MoreVertical, Barcode, Loader2, X, Trash2, Edit3, History, Bike, Car, Layers, MapPin, Package, Tag, ChevronDown, ChevronRight, Minus, TrendingUp, ShoppingCart, DollarSign, CheckCircle2, Printer, Download, AlertTriangle } from 'lucide-react';
+import { Search, Plus, Filter, MoreVertical, Barcode, Loader2, X, Trash2, Edit3, History, Bike, Car, Layers, MapPin, Package, Tag, ChevronDown, ChevronRight, Minus, TrendingUp, ShoppingCart, DollarSign, CheckCircle2, Printer, Download, AlertTriangle, FileText, Camera } from 'lucide-react';
+import { Html5QrcodeScanner, Html5QrcodeSupportedFormats } from 'html5-qrcode';
 import api from '../api';
 import BarcodeLabel from '../components/BarcodeLabel';
 import socket from '../socket';
@@ -63,6 +63,12 @@ const Inventory: React.FC = () => {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [productToDelete, setProductToDelete] = useState<Product | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isPrinting, setIsPrinting] = useState(false);
+  const [printContent, setPrintContent] = useState<React.ReactNode>(null);
+  
+  // Camera Scanner in Form
+  const [isFormScanning, setIsFormScanning] = useState(false);
+  const formScannerRef = React.useRef<Html5QrcodeScanner | null>(null);
 
   // Advanced Adjustment
   const [adjustmentReason, setAdjustmentReason] = useState('DAMAGED');
@@ -129,12 +135,60 @@ const Inventory: React.FC = () => {
   }, []);
 
   useEffect(() => {
+    if (isFormScanning) {
+      setTimeout(() => {
+        const scanner = new Html5QrcodeScanner(
+          "form-reader",
+          { 
+            fps: 10, 
+            qrbox: { width: 250, height: 150 },
+            formatsToSupport: [ 
+              Html5QrcodeSupportedFormats.CODE_128,
+              Html5QrcodeSupportedFormats.CODE_39,
+              Html5QrcodeSupportedFormats.EAN_13
+            ]
+          },
+          false
+        );
+        
+        scanner.render((text) => {
+          setFormData(prev => ({ ...prev, barcode: text.toUpperCase() }));
+          setIsFormScanning(false);
+          scanner.clear();
+        }, (err) => {});
+        
+        formScannerRef.current = scanner;
+      }, 100);
+    } else {
+      if (formScannerRef.current) {
+        formScannerRef.current.clear().catch(() => {});
+        formScannerRef.current = null;
+      }
+    }
+  }, [isFormScanning]);
+
+  useEffect(() => {
     if (showModal) {
       setTimeout(() => {
         nameInputRef.current?.focus();
       }, 300);
+    } else {
+      setIsFormScanning(false);
     }
   }, [showModal]);
+
+  const generateBarcode = () => {
+    const count = parts.length + 1;
+    const padded = String(count).padStart(5, '0');
+    let candidate = `JM-${padded}`;
+    // Avoid collision with existing barcodes
+    let i = count;
+    while (parts.some(p => p.barcode === candidate)) {
+      i++;
+      candidate = `JM-${String(i).padStart(5, '0')}`;
+    }
+    setFormData(prev => ({ ...prev, barcode: candidate }));
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -247,37 +301,119 @@ const Inventory: React.FC = () => {
     }
   };
 
-  const exportCSV = () => {
+  const exportPDF = () => {
     if (parts.length === 0) return alert('Tidak ada data untuk diekspor');
     
-    const headers = ['ID', 'Nama Barang', 'Kategori', 'Barcode', 'Stok', 'Min Stok', 'Harga Beli (Modal)', 'Harga Jual Normal', 'Tipe Kendaraan', 'Lokasi'];
-    const csvRows = [headers.join(',')];
+    const catalogContent = (
+      <div className="space-y-8">
+        <div className="flex justify-between items-start border-b-2 border-primary pb-6">
+          <div>
+            <h1 className="text-3xl font-black uppercase tracking-tighter">Katalog Master Barang</h1>
+            <p className="text-sm font-bold text-muted-foreground italic">Jakarta Motor - Spareparts &amp; Services</p>
+          </div>
+          <div className="text-right">
+            <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Tanggal Cetak</p>
+            <p className="font-bold text-sm">{new Date().toLocaleDateString('id-ID', { dateStyle: 'long' })}</p>
+          </div>
+        </div>
+
+        <table className="w-full text-left border-collapse">
+          <thead>
+            <tr className="bg-primary/5 text-[10px] font-black uppercase tracking-widest border-y border-primary/20">
+              <th className="px-4 py-4">No</th>
+              <th className="px-4 py-4">Nama Barang &amp; Barcode</th>
+              <th className="px-4 py-4">Kategori</th>
+              <th className="px-4 py-4">Lokasi</th>
+              <th className="px-4 py-4 text-right">Harga Normal</th>
+              <th className="px-4 py-4 text-center">Stok</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-border">
+            {filteredParts.map((p, idx) => (
+              <tr key={p.id} className="text-[11px] hover:bg-muted/30">
+                <td className="px-4 py-4 font-bold text-muted-foreground">{idx + 1}</td>
+                <td className="px-4 py-4">
+                  <p className="font-black text-sm uppercase">{p.name}</p>
+                  <p className="font-mono text-[9px] text-muted-foreground">{p.barcode}{p.partNumber ? ` | PN: ${p.partNumber}` : ''}</p>
+                </td>
+                <td className="px-4 py-4 font-bold">{p.category || 'UMUM'}</td>
+                <td className="px-4 py-4 font-bold">{p.location || '-'}</td>
+                <td className="px-4 py-4 text-right font-black">Rp {p.priceNormal.toLocaleString('id-ID')}</td>
+                <td className="px-4 py-4 text-center">
+                  <span className={`px-2 py-1 rounded font-black ${p.stock <= p.minStock ? 'bg-red-500/10 text-red-500' : 'bg-primary/10 text-primary'}`}>
+                    {p.stock}
+                  </span>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        
+        <div className="pt-10 border-t border-dashed border-border flex justify-between items-end">
+          <p className="text-[9px] italic text-muted-foreground">Laporan ini dihasilkan otomatis oleh Sistem Jakarta Motor POS.</p>
+          <div className="text-center">
+            <p className="text-[10px] font-black uppercase mb-12 text-muted-foreground">Gudang / Inventory</p>
+            <div className="border-t border-black w-40" />
+            <p className="text-[10px] font-bold mt-1 uppercase tracking-tighter">Staff Logistik</p>
+          </div>
+        </div>
+      </div>
+    );
+
+    setPrintContent(catalogContent);
+    setIsPrinting(true);
     
-    parts.forEach(p => {
-      const row = [
-        p.id,
-        `"${p.name}"`,
-        `"${p.category}"`,
-        `"${p.barcode}"`,
-        p.stock,
-        p.minStock,
-        p.purchasePrice,
-        p.priceNormal,
-        p.vehicleType,
-        `"${p.location || ''}"`
-      ];
-      csvRows.push(row.join(','));
-    });
-    
-    const csvContent = csvRows.join('\n');
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
-    const url = URL.createObjectURL(blob);
-    link.setAttribute('href', url);
-    link.setAttribute('download', `data_barang_bengkel_${new Date().toISOString().split('T')[0]}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    setTimeout(() => {
+      const element = document.getElementById('inventory-print-area');
+      if (!element) { setIsPrinting(false); return; }
+
+      const reportHtml = element.innerHTML;
+      const newWindow = window.open('', '_blank', 'width=1100,height=800');
+      
+      if (newWindow) {
+        newWindow.document.write(`
+          <html>
+            <head>
+              <title>Katalog Barang - Jakarta Motor</title>
+              <script src="https://cdn.tailwindcss.com"><\/script>
+              <style>
+                body { background-color: #f3f4f6; color: black; padding: 60px 20px 40px; font-family: sans-serif; }
+                @media print { 
+                  body { background-color: white; padding: 0; }
+                  .no-print { display: none !important; }
+                }
+                .action-bar {
+                  position: fixed; top: 0; left: 0; right: 0;
+                  background: #1f2937; color: white; padding: 12px;
+                  display: flex; justify-content: center; gap: 20px;
+                  z-index: 100; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+                }
+                .btn {
+                  padding: 8px 24px; border-radius: 8px; font-weight: 800; 
+                  text-transform: uppercase; font-size: 12px; cursor: pointer;
+                  transition: all 0.2s;
+                }
+                .btn-primary { background: #ff4500; color: white; border: none; }
+                .btn-primary:hover { background: #e63e00; transform: scale(1.05); }
+              </style>
+            </head>
+            <body>
+              <div class="action-bar no-print">
+                <button class="btn btn-primary" onclick="window.print()">&#128190; SIMPAN / CETAK SEBAGAI PDF</button>
+                <button class="btn" style="background: #374151;" onclick="window.close()">TUTUP</button>
+              </div>
+              <div style="max-width:1000px;margin:0 auto;background:white;padding:48px;box-shadow:0 25px 50px -12px rgba(0,0,0,0.25);">
+                ${reportHtml}
+              </div>
+            </body>
+          </html>
+        `);
+        newWindow.document.close();
+      }
+
+      setIsPrinting(false);
+      setPrintContent(null);
+    }, 500);
   };
 
   const filteredParts = parts.filter(part => {
@@ -292,6 +428,7 @@ const Inventory: React.FC = () => {
   });
 
   return (
+    <>
     <div className="space-y-8 pb-10">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div>
@@ -300,10 +437,10 @@ const Inventory: React.FC = () => {
         </div>
         <div className="flex items-center gap-3">
           <button 
-            onClick={exportCSV}
+            onClick={exportPDF}
             className="flex items-center gap-2 px-6 py-4 bg-card hover:bg-muted text-foreground border border-border/50 rounded-[1.5rem] shadow-sm transition-all font-black text-[11px] uppercase tracking-widest"
           >
-            <Download className="w-4 h-4" /> Export CSV
+            <FileText className="w-4 h-4 text-primary" /> CETAK KATALOG / PDF
           </button>
           <button 
             onClick={() => { 
@@ -808,9 +945,43 @@ const Inventory: React.FC = () => {
                       ref={nameInputRef}
                       required type="text" placeholder="NAMA BARANG (CONTOH: BAN LUAR IRC 80/90-14)" className="w-full bg-card border-2 border-border/50 rounded-2xl px-6 py-4 font-black text-lg focus:outline-none focus:border-primary transition-all placeholder:text-muted-foreground/20" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value.toUpperCase()})} />
                     <div className="grid grid-cols-2 gap-4">
-                      <div className="relative group">
-                        <Barcode className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground group-focus-within:text-primary" />
-                        <input required type="text" placeholder="BARCODE / SKU" className="w-full bg-muted border border-border rounded-xl pl-12 pr-4 py-3 font-mono font-bold text-sm focus:outline-none" value={formData.barcode} onChange={e => setFormData({...formData, barcode: e.target.value.toUpperCase()})} />
+                      <div className="space-y-1">
+                        <div className="relative group flex items-center gap-2">
+                          <div className="relative flex-1">
+                            <Barcode className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground group-focus-within:text-primary z-10" />
+                            <input
+                              type="text"
+                              placeholder="BARCODE / SKU (opsional)"
+                              className="w-full bg-muted border border-border rounded-xl pl-12 pr-4 py-3 font-mono font-bold text-sm focus:outline-none focus:border-primary transition-all"
+                              value={formData.barcode || ''}
+                              onChange={e => setFormData({...formData, barcode: e.target.value.toUpperCase()})}
+                            />
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => setIsFormScanning(!isFormScanning)}
+                            className={`p-3 rounded-xl border transition-all ${isFormScanning ? 'bg-red-500 text-white border-red-600' : 'bg-primary/10 text-primary border-primary/20 hover:bg-primary/20'}`}
+                            title="Scan via Kamera"
+                          >
+                            {isFormScanning ? <X className="w-5 h-5" /> : <Camera className="w-5 h-5" />}
+                          </button>
+                        </div>
+                        
+                        {isFormScanning && (
+                          <div className="mt-2 bg-zinc-900 rounded-2xl overflow-hidden border-2 border-primary/30 relative">
+                            <div id="form-reader" className="w-full h-40"></div>
+                            <div className="absolute inset-0 pointer-events-none border-[20px] border-black/40"></div>
+                            <div className="absolute top-2 left-1/2 -translate-x-1/2 bg-primary text-white text-[8px] font-black px-2 py-0.5 rounded-full uppercase">Kamera Aktif</div>
+                          </div>
+                        )}
+
+                        <button
+                          type="button"
+                          onClick={generateBarcode}
+                          className="w-full text-[9px] font-black uppercase tracking-widest text-primary bg-primary/10 hover:bg-primary/20 border border-primary/30 rounded-lg py-1.5 transition-all flex items-center justify-center gap-1.5"
+                        >
+                          <Barcode className="w-3 h-3" /> Auto Generate Barcode
+                        </button>
                       </div>
                       <div className="relative group">
                         <Tag className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground group-focus-within:text-primary" />
@@ -986,6 +1157,16 @@ const Inventory: React.FC = () => {
         </div>
       )}
     </div>
+
+    {/* Hidden Print Area */}
+    {isPrinting && (
+      <div className="hidden">
+        <div id="inventory-print-area">
+          {printContent}
+        </div>
+      </div>
+    )}
+    </>
   );
 };
 

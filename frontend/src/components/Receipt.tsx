@@ -65,7 +65,7 @@ const Receipt: React.FC<ReceiptProps> = ({ workshop, transaction }) => {
 
       {transaction.reprintCount && transaction.reprintCount > 1 && (
         <div className="border border-black p-1 text-center mb-2">
-           <h3 className="text-[11px] font-black uppercase">*** SALINAN KE-{transaction.reprintCount - 1} ***</h3>
+           <h3 className="text-[11px] font-black uppercase">*** SALINAN {transaction.reprintCount} ***</h3>
         </div>
       )}
 

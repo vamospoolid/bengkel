@@ -686,6 +686,20 @@ app.get('/api/products/:id', authenticate, async (req, res) => {
 app.post('/api/products', authenticate, authorize(['ADMIN', 'CASHIER']), async (req, res) => {
   const data = req.body;
   try {
+    // Auto-generate barcode if not provided
+    if (!data.barcode || data.barcode.trim() === '') {
+      const count = await prisma.product.count();
+      const padded = String(count + 1).padStart(5, '0');
+      data.barcode = `JM-${padded}`;
+      // Ensure uniqueness in case of concurrent inserts
+      let exists = await prisma.product.findUnique({ where: { barcode: data.barcode } });
+      let attempt = count + 1;
+      while (exists) {
+        attempt++;
+        data.barcode = `JM-${String(attempt).padStart(5, '0')}`;
+        exists = await prisma.product.findUnique({ where: { barcode: data.barcode } });
+      }
+    }
     const product = await prisma.product.create({ data });
     res.status(201).json(product);
   } catch (error) {
@@ -964,7 +978,8 @@ app.post('/api/pos/checkout', authenticate, async (req, res) => {
     discount,
     paymentType,
     notes,
-    workOrderId  // Optional: link to work order for auto-archive
+    workOrderId,
+    customerName
   } = req.body;
 
   try {
@@ -979,24 +994,50 @@ app.post('/api/pos/checkout', authenticate, async (req, res) => {
         }
 
         const vehicle = await tx.vehicle.upsert({
-          where: { plateNumber },
+          where: { plateNumber: plateNumber.toUpperCase() },
           update: {
-            // Update model/owner/type if currently "Unknown"
             model: workOrderInfo?.model || undefined,
-            owner: workOrderInfo?.customerName || undefined,
+            owner: workOrderInfo?.customerName || customerName || undefined,
             vehicleType: workOrderInfo?.vehicleType || undefined
           },
           create: {
-            plateNumber,
-            model: workOrderInfo?.model || 'Unknown',
-            owner: workOrderInfo?.customerName || 'Customer',
+            plateNumber: plateNumber.toUpperCase(),
+            model: workOrderInfo?.model || 'Unit Bengkel',
+            owner: workOrderInfo?.customerName || customerName || 'PELANGGAN',
             vehicleType: workOrderInfo?.vehicleType || 'MOTOR'
           }
         });
         vehicleId = vehicle.id;
       }
 
-      // 2. Create Transaction Header
+      // 2. Handle Customer (Auto-link or Auto-create)
+      let finalCustomerId = customerId;
+      const effectiveCustomerName = customerName || (plateNumber ? (await tx.vehicle.findUnique({ where: { id: vehicleId } }))?.owner : null);
+
+      if (!finalCustomerId && effectiveCustomerName && effectiveCustomerName.toUpperCase() !== 'UMUM') {
+        // Try to find by name
+        const existingCustomer = await tx.customer.findFirst({
+          where: { 
+            name: effectiveCustomerName
+          }
+        });
+        
+        if (existingCustomer) {
+          finalCustomerId = existingCustomer.id;
+        } else {
+          // Auto-create customer
+          const newCustomer = await tx.customer.create({
+            data: { 
+              name: effectiveCustomerName.toUpperCase(),
+              type: 'UMUM',
+              whatsapp: req.body.customerWA || null
+            }
+          });
+          finalCustomerId = newCustomer.id;
+        }
+      }
+
+      // 3. Create Transaction Header
       const invoiceNo = `INV-${new Date().getTime()}`;
       
       // Check if this ID already exists (Sync protection)
@@ -1013,7 +1054,7 @@ app.post('/api/pos/checkout', authenticate, async (req, res) => {
           id: req.body.id || undefined, // Use provided UUID from frontend
           invoiceNo,
           vehicleId,
-          customerId,
+          customerId: finalCustomerId,
           totalAmount,
           tax,
           discount,
@@ -1599,37 +1640,59 @@ app.get('/api/workshop/search/:plate', authenticate, async (req, res) => {
     });
 
     if (task) {
-      // Robustly handle services and parts (parse if string)
-      const rawServices = typeof task.services === 'string' ? JSON.parse(task.services) : (task.services || []);
-      const rawParts = typeof task.partsUsed === 'string' ? JSON.parse(task.partsUsed) : (task.partsUsed || []);
+      // Robustly handle services and parts (handle string vs object, and nested JSON)
+      const parseJson = (val: any) => {
+        if (!val) return [];
+        if (typeof val === 'string') {
+          try { return JSON.parse(val); } catch (e) { return []; }
+        }
+        return Array.isArray(val) ? val : [val];
+      };
+
+      const rawServices = parseJson(task.services);
+      const rawParts = parseJson(task.partsUsed);
 
       // Enrich services with price data from Service table
       const serviceDetails = await Promise.all(
-        (Array.isArray(rawServices) ? rawServices : []).map(async (svcItem: any) => {
+        rawServices.map(async (svcItem: any) => {
+          if (!svcItem) return null;
           const isObject = typeof svcItem === 'object' && svcItem !== null;
-          const svcName = isObject ? svcItem.name : svcItem;
+          const svcName = isObject ? svcItem.name : String(svcItem);
           const manualPrice = isObject ? svcItem.price : null;
 
-          const svc = await prisma.service.findFirst({ where: { name: svcName } });
-          return {
-            id: svc?.id || `temp-${svcName}`,
-            name: svcName,
-            price: manualPrice ?? (svc?.price || 0),
-            estimatedTime: svc?.estimatedTime || '-'
-          };
+          try {
+            const svc = await prisma.service.findFirst({ where: { name: svcName } });
+            return {
+              id: svc?.id || `temp-${Date.now()}-${Math.random()}`,
+              name: svcName,
+              price: manualPrice ?? (svc?.price || 0),
+              estimatedTime: svc?.estimatedTime || '-'
+            };
+          } catch (e) {
+            return { id: `err-${Date.now()}`, name: svcName, price: manualPrice || 0, estimatedTime: '-' };
+          }
         })
       );
 
       // Extract parts data
-      const partDetails = (Array.isArray(rawParts) ? rawParts : []).map((p: any) => ({
-        id: p.id,
-        name: p.name,
-        price: p.price,
-        quantity: p.quantity || 1,
-        type: 'part'
-      }));
+      const partDetails = rawParts.map((p: any) => {
+        if (!p) return null;
+        const isObject = typeof p === 'object' && p !== null;
+        return {
+          id: isObject ? (p.id || p.productId) : `part-${Date.now()}`,
+          name: isObject ? p.name : String(p),
+          price: isObject ? (p.price || 0) : 0,
+          quantity: isObject ? (p.quantity || 1) : 1,
+          type: 'part'
+        };
+      });
 
-      return res.json({ ...task, serviceDetails, partDetails, mode: 'WORKSHOP' });
+      return res.json({ 
+        ...task, 
+        serviceDetails: serviceDetails.filter(Boolean), 
+        partDetails: partDetails.filter(Boolean), 
+        mode: 'WORKSHOP' 
+      });
     }
 
     // 2. Fallback: If no DONE work order, check for Vehicle record (Option A)
@@ -1651,9 +1714,10 @@ app.get('/api/workshop/search/:plate', authenticate, async (req, res) => {
 
     // 3. Not found anywhere
     res.status(404).json({ error: 'Data kendaraan tidak ditemukan.' });
-  } catch (error) {
-    console.error('SEARCH ERROR:', error);
-    res.status(500).json({ error: 'Search failed' });
+  } catch (error: any) {
+    console.error('WORKSHOP SEARCH CRASH:', error);
+    fs.appendFileSync('workshop_search_error.log', `${new Date().toISOString()} - ${plate} - ${error.message}\n${error.stack}\n\n`);
+    res.status(500).json({ error: 'Gagal mengambil data bengkel: ' + error.message });
   }
 });
 
@@ -1930,6 +1994,37 @@ app.post('/api/suppliers', authenticate, authorize(['ADMIN']), async (req, res) 
     res.status(201).json(supplier);
   } catch (error) {
     res.status(400).json({ error: 'Failed to create supplier' });
+  }
+});
+
+// Update Supplier
+app.patch('/api/suppliers/:id', authenticate, authorize(['ADMIN']), async (req, res) => {
+  const { id } = req.params;
+  const { name, phone, address } = req.body;
+  try {
+    const updated = await prisma.supplier.update({
+      where: { id: s(id) },
+      data: { name, phone, address }
+    });
+    res.json(updated);
+  } catch (error) {
+    res.status(400).json({ error: 'Failed to update supplier' });
+  }
+});
+
+// Delete Supplier
+app.delete('/api/suppliers/:id', authenticate, authorize(['ADMIN']), async (req, res) => {
+  const { id } = req.params;
+  try {
+    // Check if supplier has purchases
+    const purchaseCount = await prisma.supplierPurchase.count({ where: { supplierId: s(id) } });
+    if (purchaseCount > 0) {
+      return res.status(400).json({ error: 'Gagal menghapus. Supplier ini sudah memiliki riwayat transaksi pembelian.' });
+    }
+    await prisma.supplier.delete({ where: { id: s(id) } });
+    res.json({ message: 'Supplier deleted' });
+  } catch (error) {
+    res.status(400).json({ error: 'Failed to delete supplier' });
   }
 });
 
@@ -2297,13 +2392,21 @@ app.get('/api/dashboard/summary', authenticate, async (req, res) => {
         amount: p.totalAmount,
         dueDate: p.dueDate
       })),
-      recentTasks: recentTasks.map(t => ({
-        plate: t.plateNumber,
-        vehicle: t.model || 'Unknown',
-        service: (Array.isArray(t.services) && t.services.length > 0) ? (t.services[0] as string) : 'Servis Umum',
-        mechanic: t.mechanic?.name || '-',
-        status: t.status === 'QUEUED' ? 'Antrian' : t.status === 'PROGRESS' ? 'Berjalan' : 'Selesai'
-      }))
+      recentTasks: recentTasks.map(t => {
+        let serviceName = 'Servis Umum';
+        if (Array.isArray(t.services) && t.services.length > 0) {
+          const firstSvc = t.services[0];
+          serviceName = typeof firstSvc === 'string' ? firstSvc : (firstSvc as any)?.name || 'Servis';
+        }
+
+        return {
+          plate: t.plateNumber || 'TANPA PLAT',
+          vehicle: t.model || 'Bukan Unit',
+          service: serviceName,
+          mechanic: t.mechanic?.name || '-',
+          status: t.status === 'QUEUED' ? 'Antrian' : t.status === 'PROGRESS' ? 'Berjalan' : 'Selesai'
+        };
+      })
     });
   } catch (error) {
     console.error(error);
@@ -2547,6 +2650,45 @@ app.get('/api/print/list', authenticate, async (req, res) => {
   }
 });
 
+// Test Printer Connection
+app.post('/api/print/test', authenticate, async (req, res) => {
+  const { printerName } = req.body;
+  if (!printerName) return res.status(400).json({ error: 'Nama printer diperlukan' });
+  
+  try {
+    // Actual print test logic
+    const printer = new ThermalPrinter({
+      type: PrinterTypes.EPSON,
+      interface: 'printer:dummy',
+      driver: { send: () => { }, open: () => { }, close: () => { } } as any,
+      removeSpecialCharacters: false,
+      lineCharacter: "=",
+      width: 42
+    });
+
+    printer.alignCenter();
+    printer.setTextDoubleHeight();
+    printer.println("TES KONEKSI BERHASIL");
+    printer.setTextNormal();
+    printer.println("Jakarta Motor POS System");
+    printer.drawLine();
+    printer.println("Printer: " + printerName);
+    printer.println("Waktu: " + new Date().toLocaleString('id-ID'));
+    printer.newLine();
+    printer.println("HARDWARE READY!");
+    printer.newLine();
+    printer.newLine();
+    printer.add(Buffer.from([0x1d, 0x56, 0x00])); // Full Cut
+
+    const buffer = printer.getBuffer();
+    await printRaw(buffer, printerName);
+    
+    res.json({ message: 'Perintah tes dikirim ke ' + printerName });
+  } catch (error: any) {
+    res.status(500).json({ error: 'Gagal tes printer: ' + error.message });
+  }
+});
+
 // Get Hardware Info
 app.get('/api/system/hardware', authenticate, async (req, res) => {
   try {
@@ -2593,6 +2735,7 @@ app.post('/api/print/receipt', authenticate, async (req, res) => {
       if (!transactionId) {
         return res.status(400).json({ error: 'ID Transaksi diperlukan' });
       }
+      // reprintCount increment is handled inside the $transaction block below.
 
       // Add a small delay to ensure DB transaction is committed
       await new Promise(resolve => setTimeout(resolve, 500));
@@ -2690,10 +2833,9 @@ app.post('/api/print/receipt', authenticate, async (req, res) => {
     printer.drawLine();
 
     printer.alignLeft();
-    if (transaction.reprintCount > 1) {
+    if (transaction.reprintCount && transaction.reprintCount > 1) {
       printer.setTextDoubleHeight();
-      printer.println("       *** SALINAN ***");
-      printer.println(`       Cetak Ke: ${transaction.reprintCount}`);
+      printer.println(`       *** SALINAN ${transaction.reprintCount} ***`);
       printer.setTextNormal();
       printer.newLine();
     }
@@ -2756,8 +2898,8 @@ app.post('/api/print/receipt', authenticate, async (req, res) => {
     printer.newLine();
     printer.newLine();
     printer.newLine();
-    printer.add(Buffer.from([0x1b, 0x69])); 
-    printer.add(Buffer.from([0x1d, 0x56, 0x00])); 
+    // Using only GS V 0 (Full Cut) to prevent double-cutting
+    printer.add(Buffer.from([0x1d, 0x56, 0x00]));
 
 
     const buffer = printer.getBuffer();

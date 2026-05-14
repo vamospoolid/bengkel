@@ -54,27 +54,29 @@ echo [OK] GitHub selesai.
 echo.
 
 :: ============================================================
-:: STEP 4: Upload dist ke VPS via SCP
+:: STEP 4: Upload dist & DATABASE ke VPS via SCP
 :: ============================================================
-echo [4/5] Upload dist frontend dan mobile ke VPS...
+echo [4/5] Uploading dist files and local database to VPS...
 echo MASUKKAN PASSWORD VPS SAAT DIMINTA: %VPS_PASS%
 echo.
 
+:: Bersihkan folder tujuan di VPS dulu agar tidak ada file sampah
+ssh %VPS_USER%@%VPS_IP% "rm -rf /var/www/bengkel/frontend/* /var/www/bengkel/mobile/*"
+
 echo   [4a] Upload frontend/dist...
 scp -r "%~dp0frontend\dist\*" %VPS_USER%@%VPS_IP%:/var/www/bengkel/frontend/
-if %ERRORLEVEL% NEQ 0 (
-    echo [ERROR] Upload frontend gagal!
-    pause
-    exit /b 1
-)
 
 echo   [4b] Upload mobile/dist...
 scp -r "%~dp0mobile\dist\*" %VPS_USER%@%VPS_IP%:/var/www/bengkel/mobile/
+
+echo   [4c] Upload Database (dev.db)...
+:: Pastikan backend di VPS dimatikan sebentar agar file db tidak lock (opsional tapi aman)
+ssh %VPS_USER%@%VPS_IP% "pm2 stop bengkel-backend"
+scp "%~dp0backend\prisma\dev.db" %VPS_USER%@%VPS_IP%:/var/www/bengkel/backend/prisma/
 if %ERRORLEVEL% NEQ 0 (
-    echo [ERROR] Upload mobile gagal!
-    pause
-    exit /b 1
+    echo [WARN] Upload Database gagal! File mungkin sedang digunakan.
 )
+
 echo [OK] Upload selesai.
 echo.
 
@@ -82,7 +84,7 @@ echo.
 :: STEP 5: Update Backend di VPS + Restart PM2
 :: ============================================================
 echo [5/5] Update Backend dan restart PM2 di VPS...
-ssh %VPS_USER%@%VPS_IP% "cd /var/www/bengkel/backend && git pull origin main && npm install && npx prisma generate && pm2 restart bengkel-backend && echo 'PM2 restarted OK'"
+ssh %VPS_USER%@%VPS_IP% "cd /var/www/bengkel/backend && git pull origin main && npm install && npx prisma generate && pm2 start bengkel-backend || pm2 restart bengkel-backend && echo 'PM2 started/restarted OK'"
 if %ERRORLEVEL% NEQ 0 (
     echo [WARN] Backend update mungkin gagal, cek VPS manual.
 )
