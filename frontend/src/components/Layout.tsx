@@ -16,7 +16,13 @@ interface LayoutProps {
 
 const Layout: React.FC<LayoutProps> = ({ children, activePage, setActivePage, userRole = 'admin', setUserRole, onLogout }) => {
   const [showUserMenu, setShowUserMenu] = React.useState(false);
-  const user = JSON.parse(localStorage.getItem('user') || '{}');
+  const user = React.useMemo(() => {
+    try {
+      return JSON.parse(localStorage.getItem('user') || '{}');
+    } catch (e) {
+      return {};
+    }
+  }, [activePage]); // Recalculate on page change as a proxy for potential storage changes
 
   // Close user menu when pressing Escape or when page changes
   React.useEffect(() => {

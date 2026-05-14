@@ -11,7 +11,7 @@ interface WorkshopTask {
   vehicleType: 'MOTOR' | 'MOBIL';
   status: 'QUEUED' | 'PROGRESS' | 'TESTING' | 'DONE';
   complaint?: string;
-  services: string[];
+  services: (string | { name: string; price: number })[];
   mechanicName?: string;
   photos?: string[];
   createdAt: string;
@@ -22,8 +22,14 @@ const Workshop: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [showAddModal, setShowAddModal] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
-  const [searchTerm, setSearchTerm] = useState('');
   const [selectedPhoto, setSelectedPhoto] = useState<string | null>(null);
+  // Bug #3 fix: searchTerm was accidentally removed during auto-focus refactor
+  const [searchTerm, setSearchTerm] = useState('');
+  const plateInputRef = React.useRef<HTMLInputElement>(null);
+  const customerInputRef = React.useRef<HTMLInputElement>(null);
+  const modelInputRef = React.useRef<HTMLInputElement>(null);
+  const waInputRef = React.useRef<HTMLInputElement>(null);
+  const complaintInputRef = React.useRef<HTMLTextAreaElement>(null);
 
   const [servicesList, setServicesList] = useState<any[]>([]);
   const [newTask, setNewTask] = useState({
@@ -33,7 +39,7 @@ const Workshop: React.FC = () => {
     vehicleType: 'MOTOR' as 'MOTOR' | 'MOBIL',
     complaint: '',
     mechanicId: '',
-    services: [] as string[],
+    services: [] as { name: string; price: number }[],
     whatsapp: ''
   });
   const [mechanics, setMechanics] = useState<any[]>([]);
@@ -52,6 +58,14 @@ const Workshop: React.FC = () => {
       socket.off('task-updated');
     };
   }, []);
+
+  useEffect(() => {
+    if (showAddModal) {
+      setTimeout(() => {
+        plateInputRef.current?.focus();
+      }, 300);
+    }
+  }, [showAddModal]);
 
   const fetchTasks = async (silent = false) => {
     try {
@@ -245,8 +259,10 @@ const Workshop: React.FC = () => {
 
                       {/* Services */}
                       <div className="flex flex-wrap gap-1">
-                        {(task.services || []).map((svc, i) => (
-                          <span key={i} className="px-2 py-0.5 bg-muted rounded-md text-[10px] font-bold text-muted-foreground">{svc}</span>
+                        {(task.services || []).map((svc: any, i) => (
+                          <span key={i} className="px-2 py-0.5 bg-muted rounded-md text-[10px] font-bold text-muted-foreground">
+                            {typeof svc === 'string' ? svc : svc.name}
+                          </span>
                         ))}
                       </div>
 
@@ -310,8 +326,11 @@ const Workshop: React.FC = () => {
                         </button>
                       ))}
                     </div>
-                    <input required type="text" placeholder="B 1234 ABC"
+                    <input 
+                      ref={plateInputRef}
+                      required type="text" placeholder="B 1234 ABC"
                       value={newTask.plateNumber} onChange={e => setNewTask(p => ({ ...p, plateNumber: e.target.value.toUpperCase() }))}
+                      onKeyDown={e => { if (e.key === 'Enter') customerInputRef.current?.focus(); }}
                       className="w-full bg-zinc-900 border border-zinc-700 rounded-xl px-4 py-3 text-xl font-black tracking-[0.25em] text-center uppercase focus:outline-none focus:ring-2 focus:ring-primary/40 placeholder:text-zinc-600" />
                   </div>
 
@@ -319,17 +338,26 @@ const Workshop: React.FC = () => {
                   <div className="grid grid-cols-3 gap-3">
                     <div className="col-span-1">
                       <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest block mb-1.5">Pemilik</label>
-                      <input type="text" placeholder="Nama Pel..." value={newTask.customerName} onChange={e => setNewTask(p => ({ ...p, customerName: e.target.value }))}
+                      <input 
+                        ref={customerInputRef}
+                        type="text" placeholder="Nama Pel..." value={newTask.customerName} onChange={e => setNewTask(p => ({ ...p, customerName: e.target.value }))}
+                        onKeyDown={e => { if (e.key === 'Enter') modelInputRef.current?.focus(); }}
                         className="w-full bg-muted border border-border rounded-xl px-3 py-2.5 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-primary/30" />
                     </div>
                     <div className="col-span-1">
                       <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest block mb-1.5">Model</label>
-                      <input type="text" placeholder="Contoh: N..." value={newTask.model} onChange={e => setNewTask(p => ({ ...p, model: e.target.value }))}
+                      <input 
+                        ref={modelInputRef}
+                        type="text" placeholder="Contoh: N..." value={newTask.model} onChange={e => setNewTask(p => ({ ...p, model: e.target.value }))}
+                        onKeyDown={e => { if (e.key === 'Enter') waInputRef.current?.focus(); }}
                         className="w-full bg-muted border border-border rounded-xl px-3 py-2.5 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-primary/30" />
                     </div>
                     <div className="col-span-1">
                       <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest block mb-1.5">WhatsApp</label>
-                      <input type="tel" placeholder="0812..." value={newTask.whatsapp} onChange={e => setNewTask(p => ({ ...p, whatsapp: e.target.value }))}
+                      <input 
+                        ref={waInputRef}
+                        type="tel" placeholder="0812..." value={newTask.whatsapp} onChange={e => setNewTask(p => ({ ...p, whatsapp: e.target.value }))}
+                        onKeyDown={e => { if (e.key === 'Enter') complaintInputRef.current?.focus(); }}
                         className="w-full bg-muted border border-border rounded-xl px-3 py-2.5 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-primary/30" />
                     </div>
                   </div>
@@ -357,7 +385,9 @@ const Workshop: React.FC = () => {
                   {/* Complaint */}
                   <div>
                     <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest block mb-2">Detail Keluhan</label>
-                    <textarea rows={4} placeholder="Tuliskan keluhan..." value={newTask.complaint}
+                    <textarea 
+                      ref={complaintInputRef}
+                      rows={4} placeholder="Tuliskan keluhan..." value={newTask.complaint}
                       onChange={e => setNewTask(p => ({ ...p, complaint: e.target.value }))}
                       className="w-full bg-muted border border-border rounded-xl px-4 py-3 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-primary/30 resize-none" />
                   </div>
@@ -367,23 +397,49 @@ const Workshop: React.FC = () => {
                     <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest block mb-2">Daftar Layanan</label>
                     <div className="space-y-2 max-h-52 overflow-y-auto pr-1">
                       {servicesList.map(svc => {
-                        const checked = newTask.services.includes(svc.name);
+                        const selectedService = newTask.services.find(s => s.name === svc.name);
+                        const checked = !!selectedService;
+                        
                         return (
-                          <label key={svc.id} className={`flex items-center justify-between p-3 rounded-xl border-2 cursor-pointer transition-all ${checked ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/30'}`}>
-                            <div className="flex items-center gap-3">
-                              <div className={`w-4 h-4 rounded border-2 flex items-center justify-center transition-all ${checked ? 'bg-primary border-primary' : 'border-muted-foreground/40'}`}>
-                                {checked && <CheckCircle2 className="w-2.5 h-2.5 text-white" />}
-                              </div>
-                              <input type="checkbox" checked={checked} onChange={() => {
-                                setNewTask(p => ({
-                                  ...p,
-                                  services: checked ? p.services.filter(s => s !== svc.name) : [...p.services, svc.name]
-                                }));
-                              }} className="sr-only" />
-                              <span className={`font-bold text-sm ${checked ? 'text-primary' : ''}`}>{svc.name}</span>
+                          <div key={svc.id} className={`flex flex-col p-3 rounded-xl border-2 transition-all ${checked ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/30'}`}>
+                            <div className="flex items-center justify-between mb-2">
+                              <label className="flex items-center gap-3 cursor-pointer">
+                                <div className={`w-4 h-4 rounded border-2 flex items-center justify-center transition-all ${checked ? 'bg-primary border-primary' : 'border-muted-foreground/40'}`}>
+                                  {checked && <CheckCircle2 className="w-2.5 h-2.5 text-white" />}
+                                </div>
+                                <input type="checkbox" checked={checked} onChange={() => {
+                                  if (checked) {
+                                    setNewTask(p => ({ ...p, services: p.services.filter(s => s.name !== svc.name) }));
+                                  } else {
+                                    setNewTask(p => ({ ...p, services: [...p.services, { name: svc.name, price: svc.price }] }));
+                                  }
+                                }} className="sr-only" />
+                                <span className={`font-bold text-sm ${checked ? 'text-primary' : ''}`}>{svc.name}</span>
+                              </label>
+                              <span className={`text-[10px] font-black ${checked ? 'text-primary' : 'text-muted-foreground'}`}>Normal: Rp {svc.price?.toLocaleString('id-ID')}</span>
                             </div>
-                            <span className={`text-xs font-black ${checked ? 'text-primary' : 'text-muted-foreground'}`}>Rp {svc.price?.toLocaleString('id-ID')}</span>
-                          </label>
+                            
+                            {checked && (
+                              <div className="flex items-center gap-2 mt-1 animate-in slide-in-from-top-1">
+                                <span className="text-[10px] font-black text-muted-foreground uppercase">Harga Custom:</span>
+                                <div className="relative flex-1">
+                                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[10px] font-black text-muted-foreground">Rp</span>
+                                  <input 
+                                    type="number" 
+                                    value={selectedService.price}
+                                    onChange={(e) => {
+                                      const newPrice = Number(e.target.value);
+                                      setNewTask(p => ({
+                                        ...p,
+                                        services: p.services.map(s => s.name === svc.name ? { ...s, price: newPrice } : s)
+                                      }));
+                                    }}
+                                    className="w-full bg-card border border-primary/30 rounded-lg pl-8 pr-3 py-1.5 text-xs font-black focus:outline-none focus:border-primary transition-all"
+                                  />
+                                </div>
+                              </div>
+                            )}
+                          </div>
                         );
                       })}
                     </div>

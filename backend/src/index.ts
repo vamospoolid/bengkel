@@ -1595,12 +1595,16 @@ app.get('/api/workshop/search/:plate', authenticate, async (req, res) => {
     if (task) {
       // Enrich services with price data from Service table
       const serviceDetails = await Promise.all(
-        (Array.isArray(task.services) ? (task.services as string[]) : []).map(async (svcName: string) => {
+        (Array.isArray(task.services) ? task.services : []).map(async (svcItem: any) => {
+          const isObject = typeof svcItem === 'object' && svcItem !== null;
+          const svcName = isObject ? svcItem.name : svcItem;
+          const manualPrice = isObject ? svcItem.price : null;
+
           const svc = await prisma.service.findFirst({ where: { name: svcName } });
           return {
             id: svc?.id || `temp-${svcName}`,
             name: svcName,
-            price: svc?.price || 0,
+            price: manualPrice ?? (svc?.price || 0),
             estimatedTime: svc?.estimatedTime || '-'
           };
         })

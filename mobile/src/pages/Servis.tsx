@@ -29,7 +29,7 @@ export const Servis: React.FC = () => {
   const [form, setForm] = useState({
     plateNumber: '', customerName: '', model: '',
     vehicleType: 'MOTOR' as 'MOTOR'|'MOBIL',
-    complaint: '', mechanicId: '', services: [] as string[], whatsapp: ''
+    complaint: '', mechanicId: '', services: [] as { name: string; price: number }[], whatsapp: ''
   });
 
   useEffect(() => { fetchAll(); }, []);
@@ -154,8 +154,10 @@ export const Servis: React.FC = () => {
                     </div>
                     <p className="text-xs text-muted-foreground truncate">{task.model}{task.customerName ? ` · ${task.customerName}` : ''}</p>
                     <div className="flex flex-wrap gap-1.5 mt-2">
-                      {(task.services||[]).slice(0,3).map((s:string,i:number)=>(
-                        <span key={i} className="px-2 py-0.5 bg-muted rounded-md text-[9px] font-bold text-muted-foreground">{s}</span>
+                      {(task.services||[]).slice(0,3).map((s:any,i:number)=>(
+                        <span key={i} className="px-2 py-0.5 bg-muted rounded-md text-[9px] font-bold text-muted-foreground">
+                          {typeof s === 'string' ? s : s.name}
+                        </span>
                       ))}
                       {(task.services||[]).length > 3 && <span className="px-2 py-0.5 bg-muted rounded-md text-[9px] font-bold text-muted-foreground">+{task.services.length-3}</span>}
                     </div>
@@ -303,18 +305,42 @@ export const Servis: React.FC = () => {
                 </label>
                 <div className="space-y-2 max-h-48 overflow-y-auto">
                   {services.map(svc=>{
-                    const checked = form.services.includes(svc.name);
+                    const selectedService = form.services.find(s => s.name === svc.name);
+                    const checked = !!selectedService;
                     return (
-                      <button key={svc.id} type="button" onClick={()=>setForm(p=>({...p,services:checked?p.services.filter(s=>s!==svc.name):[...p.services,svc.name]}))}
-                        className={`w-full flex items-center justify-between p-3.5 rounded-2xl border-2 transition-all ${checked ? 'border-primary bg-primary/10' : 'border-border bg-muted/20'}`}>
-                        <div className="flex items-center gap-3">
-                          <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 ${checked ? 'bg-primary border-primary' : 'border-muted-foreground/50'}`}>
-                            {checked && <CheckCircle2 className="w-3 h-3 text-white"/>}
-                          </div>
-                          <span className={`font-bold text-sm ${checked ? 'text-primary' : ''}`}>{svc.name}</span>
+                      <div key={svc.id} className={`flex flex-col p-3.5 rounded-2xl border-2 transition-all ${checked ? 'border-primary bg-primary/10' : 'border-border bg-muted/20'}`}>
+                        <div className="flex items-center justify-between mb-2">
+                          <button type="button" onClick={()=>setForm(p=>({...p,services:checked?p.services.filter(s=>s.name!==svc.name):[...p.services,{ name: svc.name, price: svc.price }]}))}
+                            className="flex items-center gap-3">
+                            <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 ${checked ? 'bg-primary border-primary' : 'border-muted-foreground/50'}`}>
+                              {checked && <CheckCircle2 className="w-3 h-3 text-white"/>}
+                            </div>
+                            <span className={`font-bold text-sm ${checked ? 'text-primary' : ''}`}>{svc.name}</span>
+                          </button>
+                          <span className={`text-[10px] font-black ${checked ? 'text-primary' : 'text-muted-foreground'}`}>Rp {svc.price?.toLocaleString('id-ID')}</span>
                         </div>
-                        <span className={`text-xs font-black ${checked ? 'text-primary' : 'text-muted-foreground'}`}>Rp {svc.price?.toLocaleString('id-ID')}</span>
-                      </button>
+                        
+                        {checked && (
+                          <div className="flex items-center gap-2 mt-2 pt-2 border-t border-primary/20">
+                            <span className="text-[10px] font-black text-muted-foreground uppercase">Harga Custom:</span>
+                            <div className="relative flex-1">
+                              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-black text-muted-foreground">Rp</span>
+                              <input 
+                                type="number" 
+                                value={selectedService.price}
+                                onChange={(e) => {
+                                  const newPrice = Number(e.target.value);
+                                  setForm(p => ({
+                                    ...p,
+                                    services: p.services.map(s => s.name === svc.name ? { ...s, price: newPrice } : s)
+                                  }));
+                                }}
+                                className="w-full bg-background border border-primary/30 rounded-xl pl-9 pr-3 py-2 text-sm font-black focus:outline-none focus:border-primary transition-all"
+                              />
+                            </div>
+                          </div>
+                        )}
+                      </div>
                     );
                   })}
                 </div>

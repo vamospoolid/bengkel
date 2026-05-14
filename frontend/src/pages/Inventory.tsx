@@ -34,6 +34,8 @@ interface StockLog {
 }
 
 const Inventory: React.FC = () => {
+  const searchInputRef = React.useRef<HTMLInputElement>(null);
+  const nameInputRef = React.useRef<HTMLInputElement>(null);
   const userRole = JSON.parse(localStorage.getItem('user') || '{}').role || 'CASHIER';
   const isAdmin = userRole === 'ADMIN';
 
@@ -109,6 +111,11 @@ const Inventory: React.FC = () => {
     fetchProducts();
     fetchSettings();
 
+    // Auto-focus search input on mount
+    setTimeout(() => {
+      searchInputRef.current?.focus();
+    }, 500);
+
     // Socket.io listener for real-time stock updates
     socket.on('product-updated', () => fetchProducts(true));
 
@@ -120,6 +127,14 @@ const Inventory: React.FC = () => {
       localStorage.removeItem('filter_low_stock'); // Clear on unmount
     };
   }, []);
+
+  useEffect(() => {
+    if (showModal) {
+      setTimeout(() => {
+        nameInputRef.current?.focus();
+      }, 300);
+    }
+  }, [showModal]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -321,6 +336,7 @@ const Inventory: React.FC = () => {
         <div className="relative flex-1 w-full">
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground w-5 h-5" />
           <input 
+            ref={searchInputRef}
             type="text" 
             placeholder="Cari nama, barcode, atau part number..." 
             className="w-full bg-muted/50 border border-border rounded-2xl pl-12 pr-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all font-bold" 
@@ -788,7 +804,9 @@ const Inventory: React.FC = () => {
                 <div className="space-y-4">
                   <div className="space-y-2">
                     <label className="text-[10px] font-black text-primary uppercase tracking-[0.2em] ml-2 block">Identitas Barang</label>
-                    <input required type="text" placeholder="NAMA BARANG (CONTOH: BAN LUAR IRC 80/90-14)" className="w-full bg-card border-2 border-border/50 rounded-2xl px-6 py-4 font-black text-lg focus:outline-none focus:border-primary transition-all placeholder:text-muted-foreground/20" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value.toUpperCase()})} />
+                    <input 
+                      ref={nameInputRef}
+                      required type="text" placeholder="NAMA BARANG (CONTOH: BAN LUAR IRC 80/90-14)" className="w-full bg-card border-2 border-border/50 rounded-2xl px-6 py-4 font-black text-lg focus:outline-none focus:border-primary transition-all placeholder:text-muted-foreground/20" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value.toUpperCase()})} />
                     <div className="grid grid-cols-2 gap-4">
                       <div className="relative group">
                         <Barcode className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground group-focus-within:text-primary" />

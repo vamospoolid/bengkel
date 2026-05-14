@@ -47,11 +47,18 @@ const PurchaseSupplier: React.FC = () => {
   const [invoiceFile, setInvoiceFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
 
+  const supplierRef = useRef<HTMLSelectElement>(null);
+  const invoiceRef = useRef<HTMLInputElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
+  const qtyRefs = useRef<Record<string, HTMLInputElement | null>>({});
+  const priceRefs = useRef<Record<string, HTMLInputElement | null>>({});
 
   useEffect(() => {
     fetchData();
-    searchInputRef.current?.focus();
+    // Auto-focus supplier on mount
+    setTimeout(() => {
+      supplierRef.current?.focus();
+    }, 500);
   }, []);
 
   // Auto-calculate Due Date based on Purchase Date and Terms
@@ -108,6 +115,11 @@ const PurchaseSupplier: React.FC = () => {
       }]);
     }
     setSearchTerm('');
+    // Focus quantity input of the newly added item
+    setTimeout(() => {
+      qtyRefs.current[product.id]?.focus();
+      qtyRefs.current[product.id]?.select();
+    }, 100);
   };
 
   const removeItem = (id: string) => {
@@ -208,9 +220,16 @@ const PurchaseSupplier: React.FC = () => {
               <div className="relative">
                 <Truck className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
                 <select 
+                  ref={supplierRef}
                   className="w-full bg-muted/50 border border-border rounded-2xl pl-12 pr-4 py-3 font-bold appearance-none focus:outline-none focus:border-primary"
                   value={supplierId}
-                  onChange={e => setSupplierId(e.target.value)}
+                  onChange={e => {
+                    setSupplierId(e.target.value);
+                    if (e.target.value) invoiceRef.current?.focus();
+                  }}
+                  onKeyDown={e => {
+                    if (e.key === 'Enter' && supplierId) invoiceRef.current?.focus();
+                  }}
                 >
                   <option value="">-- Pilih Supplier --</option>
                   {suppliers.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
@@ -224,12 +243,17 @@ const PurchaseSupplier: React.FC = () => {
                   <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-2 block">Nomor Nota</label>
                   <div className="relative">
                     <FileText className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                    {/* Bug #8 fix: ref was declared but never attached to this input */}
                     <input 
+                      ref={invoiceRef}
                       type="text" 
                       placeholder="INV-XXX" 
                       className="w-full bg-muted/50 border border-border rounded-xl pl-10 pr-4 py-2.5 font-bold text-sm focus:outline-none focus:border-primary transition-all"
                       value={invoiceNo}
                       onChange={e => setInvoiceNo(e.target.value.toUpperCase())}
+                      onKeyDown={e => {
+                        if (e.key === 'Enter' && invoiceNo) searchInputRef.current?.focus();
+                      }}
                     />
                   </div>
                </div>
@@ -449,16 +473,23 @@ const PurchaseSupplier: React.FC = () => {
                           >
                             <Minus className="w-4 h-4" />
                           </button>
-                          <input 
-                            type="number" 
-                            min="1"
-                            className="w-24 bg-background border-2 border-border rounded-xl px-3 py-2.5 text-center text-sm font-black focus:outline-none focus:border-primary transition-all text-foreground shadow-inner [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                            value={item.quantity}
-                            onChange={(e) => {
-                              const val = parseInt(e.target.value);
-                              updateItem(item.productId, 'quantity', isNaN(val) ? 0 : val);
-                            }}
-                          />
+                            <input 
+                              ref={el => qtyRefs.current[item.productId] = el}
+                              type="number" 
+                              min="1"
+                              className="w-24 bg-background border-2 border-border rounded-xl px-3 py-2.5 text-center text-sm font-black focus:outline-none focus:border-primary transition-all text-foreground shadow-inner"
+                              value={item.quantity}
+                              onChange={(e) => {
+                                const val = parseInt(e.target.value);
+                                updateItem(item.productId, 'quantity', isNaN(val) ? 0 : val);
+                              }}
+                              onKeyDown={e => {
+                                if (e.key === 'Enter') {
+                                  priceRefs.current[item.productId]?.focus();
+                                  priceRefs.current[item.productId]?.select();
+                                }
+                              }}
+                            />
                           <button 
                             type="button"
                             onClick={() => updateItem(item.productId, 'quantity', item.quantity + 1)} 
@@ -472,12 +503,18 @@ const PurchaseSupplier: React.FC = () => {
                         <div className="relative w-40 ml-auto">
                           <span className="absolute left-4 top-1/2 -translate-y-1/2 text-[11px] font-black text-muted-foreground opacity-50">Rp</span>
                           <input 
+                            ref={el => priceRefs.current[item.productId] = el}
                             type="number" 
-                            className="w-full bg-background border-2 border-border rounded-xl pl-10 pr-4 py-2.5 text-right text-sm font-black focus:outline-none focus:border-primary transition-all text-foreground shadow-inner [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                            className="w-full bg-background border-2 border-border rounded-xl pl-10 pr-4 py-2.5 text-right text-sm font-black focus:outline-none focus:border-primary transition-all text-foreground shadow-inner"
                             value={item.purchasePrice || ''}
                             onChange={(e) => {
                               const val = parseInt(e.target.value);
                               updateItem(item.productId, 'purchasePrice', isNaN(val) ? 0 : val);
+                            }}
+                            onKeyDown={e => {
+                              if (e.key === 'Enter') {
+                                searchInputRef.current?.focus();
+                              }
                             }}
                           />
                         </div>

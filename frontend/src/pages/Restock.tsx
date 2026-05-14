@@ -33,6 +33,8 @@ const Restock: React.FC = () => {
   const [lastRestockedItems, setLastRestockedItems] = useState<RestockItem[]>([]);
   
   const searchInputRef = useRef<HTMLInputElement>(null);
+  const qtyRefs = useRef<Record<string, HTMLInputElement | null>>({});
+  const priceRefs = useRef<Record<string, HTMLInputElement | null>>({});
 
   useEffect(() => {
     fetchProducts();
@@ -66,6 +68,11 @@ const Restock: React.FC = () => {
       }]);
     }
     setSearchTerm('');
+    // Focus quantity input of the newly added item
+    setTimeout(() => {
+      qtyRefs.current[product.id]?.focus();
+      qtyRefs.current[product.id]?.select();
+    }, 100);
   };
 
   const handleBarcodeScan = (e: React.FormEvent) => {
@@ -119,13 +126,23 @@ const Restock: React.FC = () => {
       for (let i = 0; i < item.addQty; i++) {
         labels.push(`
           <div class="barcode-label">
-            <div class="shop-name text-[8px] font-black uppercase text-center border-b border-black mb-1">Jakarta Motor</div>
-            <div class="item-name text-[9px] font-bold text-center leading-tight mb-1 line-clamp-2">${item.name}</div>
-            <div class="barcode-area flex flex-col items-center justify-center">
-              <div class="barcode-strips flex gap-[1px] h-8 mb-0.5">
-                ${Array(20).fill(0).map(() => `<div class="w-[1.5px] bg-black" style="height: ${Math.random() * 10 + 20}px"></div>`).join('')}
+            <div class="header">
+              <div class="shop-name">JAKARTA MOTOR</div>
+            </div>
+            <div class="content">
+              <div class="item-name">${item.name}</div>
+              <div class="barcode-wrapper">
+                <svg class="barcode" 
+                  jsbarcode-value="${item.barcode}"
+                  jsbarcode-format="CODE128"
+                  jsbarcode-width="2"
+                  jsbarcode-height="40"
+                  jsbarcode-fontSize="14"
+                  jsbarcode-fontoptions="bold"
+                  jsbarcode-margin="0"
+                  jsbarcode-displayValue="true">
+                </svg>
               </div>
-              <div class="barcode-text font-mono text-[9px] font-black tracking-widest">${item.barcode}</div>
             </div>
           </div>
         `);
@@ -136,33 +153,77 @@ const Restock: React.FC = () => {
     printWindow.document.write(`
       <html>
         <head>
-          <title>Cetak Barcode</title>
-          <script src="https://cdn.tailwindcss.com"></script>
+          <title>Cetak Barcode Label</title>
+          <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
           <style>
-            @media print {
-              body { margin: 0; padding: 10mm; }
+            @page {
+              size: 40mm 30mm;
+              margin: 0;
+            }
+            body {
+              margin: 0;
+              padding: 0;
+              background: white;
+              font-family: 'Arial', sans-serif;
             }
             .barcode-label {
               width: 40mm;
               height: 30mm;
-              border: 1px solid #eee;
-              padding: 2mm;
-              display: inline-flex;
+              padding: 1.5mm;
+              box-sizing: border-box;
+              display: flex;
               flex-direction: column;
               justify-content: space-between;
-              margin: 2mm;
-              page-break-inside: avoid;
+              align-items: center;
+              page-break-after: always;
+              border: 0.1mm solid #eee; /* Light border for preview, printer will ignore it usually */
+            }
+            .shop-name {
+              font-size: 7pt;
+              font-weight: 900;
+              text-transform: uppercase;
+              letter-spacing: 0.5mm;
+              border-bottom: 0.2mm solid black;
+              padding-bottom: 0.5mm;
+              margin-bottom: 1mm;
+              text-align: center;
+              width: 36mm;
+            }
+            .item-name {
+              font-size: 8pt;
+              font-weight: 700;
+              text-align: center;
+              line-height: 1.1;
+              max-height: 2.2em;
+              overflow: hidden;
+              margin-bottom: 1mm;
+              display: -webkit-box;
+              -webkit-line-clamp: 2;
+              -webkit-box-orient: vertical;
+            }
+            .barcode-wrapper {
+              flex: 1;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              width: 100%;
+              overflow: hidden;
+            }
+            .barcode {
+              max-width: 100%;
+              height: auto;
             }
           </style>
         </head>
         <body>
-          <div class="flex flex-wrap justify-center">
-            ${barcodeHtml}
-          </div>
+          ${barcodeHtml}
           <script>
             window.onload = function() {
-              window.print();
-              // window.close();
+              JsBarcode(".barcode").init();
+              setTimeout(() => {
+                window.print();
+                // window.close();
+              }, 300);
             };
           </script>
         </body>
@@ -304,10 +365,17 @@ const Restock: React.FC = () => {
                         <div className="flex items-center justify-center gap-3">
                           <button onClick={() => updateItem(item.id, 'addQty', Math.max(1, item.addQty - 1))} className="p-1 hover:bg-muted rounded"><Minus className="w-3 h-3" /></button>
                           <input 
+                            ref={el => qtyRefs.current[item.id] = el}
                             type="number" 
                             className="w-16 bg-muted border border-border rounded-lg px-2 py-1.5 text-center text-xs font-black focus:outline-none focus:ring-1 focus:ring-primary"
                             value={item.addQty}
                             onChange={(e) => updateItem(item.id, 'addQty', parseInt(e.target.value) || 0)}
+                            onKeyDown={e => {
+                              if (e.key === 'Enter') {
+                                priceRefs.current[item.id]?.focus();
+                                priceRefs.current[item.id]?.select();
+                              }
+                            }}
                           />
                           <button onClick={() => updateItem(item.id, 'addQty', item.addQty + 1)} className="p-1 hover:bg-muted rounded"><Plus className="w-3 h-3" /></button>
                         </div>
@@ -323,10 +391,16 @@ const Restock: React.FC = () => {
                         <div className="flex items-center justify-end gap-2">
                           <span className="text-[10px] font-bold text-muted-foreground">Rp</span>
                           <input 
+                            ref={el => priceRefs.current[item.id] = el}
                             type="number" 
                             className="w-28 bg-muted border border-border rounded-lg px-3 py-1.5 text-right text-xs font-black focus:outline-none focus:ring-1 focus:ring-primary"
                             value={item.newPurchasePrice}
                             onChange={(e) => updateItem(item.id, 'newPurchasePrice', parseInt(e.target.value) || 0)}
+                            onKeyDown={e => {
+                              if (e.key === 'Enter') {
+                                searchInputRef.current?.focus();
+                              }
+                            }}
                           />
                         </div>
                       </td>

@@ -34,6 +34,8 @@ interface Transaction {
   };
   customer?: {
     name: string;
+    phone?: string;
+    whatsapp?: string;
   };
   items: TransactionItem[];
   reprintCount: number;
@@ -223,8 +225,8 @@ const Transactions: React.FC = () => {
   };
 
   const sendWA = (tx: Transaction) => {
-    const phone = (tx as any).customer?.phone || (tx as any).customer?.whatsapp || '';
-    if (!phone) return alert('No. HP pelanggan tidak tersedia.');
+    const phone = tx.customer?.phone || tx.customer?.whatsapp || (tx as any).customer?.wa || '';
+    if (!phone) return alert('No. HP pelanggan tidak tersedia di data transaksi ini.');
 
     const itemsStr = tx.items.map(i => `- ${i.name} (${i.quantity}x)`).join('%0A');
     const message = `Halo Pak/Bu ${tx.customer?.name || ''}, ini nota dari Jakarta Motor.%0A%0ANo: ${tx.invoiceNo}%0ADate: ${new Date(tx.createdAt).toLocaleDateString()}%0A%0AItems:%0A${itemsStr}%0A%0ATotal: Rp ${tx.totalAmount.toLocaleString()}%0A%0ATerima kasih telah servis di Jakarta Motor!`;
@@ -235,6 +237,30 @@ const Transactions: React.FC = () => {
 
     const url = `https://wa.me/${formatted}?text=${message}`;
     window.open(url, '_blank');
+  };
+
+  // Bug #5 fix: separate browser print function (was using same handlePrint as thermal)
+  const handleBrowserPrint = (tx: Transaction) => {
+    const printContent = document.getElementById('receipt-print-hidden');
+    if (!printContent) return;
+
+    const windowPrint = window.open('', '', 'left=0,top=0,width=800,height=900,toolbar=0,scrollbars=0,status=0');
+    if (!windowPrint) return;
+    windowPrint.document.write(`
+      <html>
+        <head>
+          <title>Nota - ${tx.invoiceNo}</title>
+          <script src="https://cdn.tailwindcss.com"><\/script>
+          <style>@media print { body { margin: 0; } #receipt-print { width: 80mm; box-shadow: none !important; border: none !important; } }<\/style>
+        </head>
+        <body class="bg-white">
+          ${printContent.outerHTML.replace('receipt-print-hidden', 'receipt-print')}
+          <script>window.onload = function() { window.print(); window.close(); };<\/script>
+        </body>
+      </html>
+    `);
+    windowPrint.document.close();
+    windowPrint.focus();
   };
 
   return (
@@ -477,7 +503,11 @@ const Transactions: React.FC = () => {
                   )}
                   <div className="flex justify-between text-[10px] font-bold text-muted-foreground uppercase">
                     <span>Subtotal</span>
-                    <span>Rp {(selectedTx.totalAmount - selectedTx.tax + selectedTx.discount).toLocaleString()}</span>
+                    {/* Bug #6 fix: subtotal formula was totalAmount - tax + discount (WRONG — inflated by discount amount)
+                      Correct formula: to show value before both discount and tax applied:
+                      subtotal_before_discount = totalAmount + discount
+                      subtotal_before_tax = totalAmount + discount - tax */}
+                  <span>Rp {(selectedTx.totalAmount + selectedTx.discount - selectedTx.tax).toLocaleString()}</span>
                   </div>
                   <div className="flex justify-between text-[10px] font-bold text-muted-foreground uppercase">
                     <span>Pajak (11%)</span>
@@ -519,13 +549,14 @@ const Transactions: React.FC = () => {
                 )}
                 <button 
                   onClick={() => handlePrint(selectedTx)}
-                  className="flex-1 bg-primary text-white py-5 rounded-[1.5rem] font-black text-xs uppercase tracking-widest shadow-lg shadow-primary/20 transition-all flex items-center justify-center gap-3 disabled:opacity-50"
-                  title="Cetak Silent ke Printer Kasir"
+                  className="flex-1 bg-primary text-white py-5 rounded-[1.5rem] font-black text-xs uppercase tracking-widest shadow-lg shadow-primary/20 transition-all flex items-center justify-center gap-3"
+                  title="Cetak Silent ke Printer Kasir (Thermal)"
                 >
                   <Printer className="w-5 h-5" /> CETAK ULANG (SILENT)
                 </button>
+                {/* Bug #5 fix: was calling handlePrint (thermal) — now calls handleBrowserPrint (browser/PDF) */}
                 <button 
-                  onClick={() => handlePrint(selectedTx)}
+                  onClick={() => handleBrowserPrint(selectedTx)}
                   className="bg-muted border border-border hover:bg-muted-foreground/10 p-5 rounded-[1.5rem] text-muted-foreground transition-all"
                   title="Cetak via Browser (A4/PDF)"
                 >

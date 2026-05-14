@@ -30,7 +30,7 @@ const SIZES: Record<string, { label: string; w: string; h: string; fontSize: num
   label3: { label: '33 × 15 mm (3 Kolom)', w: '33mm', h: '15mm', fontSize: 5, barcodeW: 0.9, barcodeH: 14 },
   large78x100: { label: '78 × 100 mm (Portrait)', w: '78mm', h: '100mm', fontSize: 12, barcodeW: 2.8, barcodeH: 80 },
   landscape100x70: { label: '100 × 70 mm (Landscape)', w: '100mm', h: '70mm', fontSize: 14, barcodeW: 3, barcodeH: 100 },
-  label40x30: { label: '40 × 30 mm (1 Kolom)', w: '40mm', h: '30mm', fontSize: 8, barcodeW: 1.5, barcodeH: 40 },
+  label40x30: { label: '40 × 30 mm (1 Kolom)', w: '40mm', h: '30mm', fontSize: 10, barcodeW: 1.8, barcodeH: 50 },
 };
 
 // Single label component - renders one barcode SVG
@@ -82,8 +82,8 @@ const SingleLabel: React.FC<{ product: Product; size: string; workshopName: stri
       <p style={{ fontSize: `${cfg.fontSize - 1}px`, fontFamily: 'Arial, sans-serif', color: '#888', letterSpacing: '0.1em', textTransform: 'uppercase', margin: 0, lineHeight: 1 }}>
         {workshopName}
       </p>
-      <p style={{ fontSize: `${cfg.fontSize + 0.5}px`, fontFamily: 'Arial, sans-serif', color: '#111', fontWeight: '600', margin: 0, textAlign: 'center', lineHeight: 1.2, maxWidth: '100%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-        {product.name.length > 22 ? product.name.substring(0, 22) + '…' : product.name}
+      <p style={{ fontSize: `${cfg.fontSize + 1}px`, fontFamily: 'Arial, sans-serif', color: '#111', fontWeight: '800', margin: 0, textAlign: 'center', lineHeight: 1.1, maxWidth: '100%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', textTransform: 'uppercase' }}>
+        {product.name.length > 20 ? product.name.substring(0, 20) + '…' : product.name}
       </p>
       <svg ref={svgRef} style={{ maxWidth: '100%', display: 'block' }} />
       {showPrice && (
@@ -507,8 +507,8 @@ const SingleLabelPrint: React.FC<{ product: Product; size: string; workshopName:
       <p style={{ fontSize: `${cfg.fontSize - 1}px`, fontFamily: 'Arial, sans-serif', color: '#000', letterSpacing: '0.1em', textTransform: 'uppercase', margin: 0, fontWeight: 'bold' }}>
         {workshopName}
       </p>
-      <p style={{ fontSize: `${cfg.fontSize + 1}px`, fontFamily: 'Arial, sans-serif', color: '#000', fontWeight: '800', margin: 0, textAlign: 'center', lineHeight: 1, maxWidth: '100%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-        {product.name.length > 22 ? product.name.substring(0, 22) + '…' : product.name}
+      <p style={{ fontSize: `${cfg.fontSize + 2}px`, fontFamily: 'Arial, sans-serif', color: '#000', fontWeight: '900', margin: 0, textAlign: 'center', lineHeight: 1, maxWidth: '100%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', textTransform: 'uppercase' }}>
+        {product.name.length > 18 ? product.name.substring(0, 18) + '…' : product.name}
       </p>
       {imgData ? (
         <img src={imgData} style={{ maxWidth: '95%', height: 'auto', display: 'block' }} alt="barcode" />

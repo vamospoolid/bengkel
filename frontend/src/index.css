@@ -65,3 +65,14 @@ body {
 .hover-glow {
   @apply transition-all duration-300 hover:shadow-[0_0_20px_rgba(255,69,0,0.2)] hover:border-primary/50;
 }
+
+/* Hide number input spin buttons globally to keep UI clean and remove IDE red underlines */
+input[type='number']::-webkit-outer-spin-button,
+input[type='number']::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+input[type='number'] {
+  -moz-appearance: textfield;
+}

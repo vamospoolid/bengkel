@@ -116,9 +116,12 @@ const Finance: React.FC<FinanceProps> = ({ activeTab = 'finance' }) => {
     return matchesTab && matchesSearch && matchesCategory && matchesDate;
   });
 
-  const totalIncome = records.filter(r => r.type === 'INCOME').reduce((sum, r) => sum + r.amount, 0);
-  const totalExpense = records.filter(r => r.type === 'EXPENSE').reduce((sum, r) => sum + r.amount, 0);
+  // Bug #7 fix: use filteredRecords for summary so the cards reflect active date/category filter
+  // Previously was using raw `records` — cards showed ALL-TIME totals even when filter was "Hari Ini"
+  const totalIncome = filteredRecords.filter(r => r.type === 'INCOME').reduce((sum, r) => sum + r.amount, 0);
+  const totalExpense = filteredRecords.filter(r => r.type === 'EXPENSE').reduce((sum, r) => sum + r.amount, 0);
   
+  // Keep all-time totals for the "HARI INI" sub-label (always uses records, not filtered)
   const today = new Date().toISOString().split('T')[0];
   const incomeToday = records.filter(r => r.type === 'INCOME' && r.date.split('T')[0] === today).reduce((sum, r) => sum + r.amount, 0);
   const expenseToday = records.filter(r => r.type === 'EXPENSE' && r.date.split('T')[0] === today).reduce((sum, r) => sum + r.amount, 0);

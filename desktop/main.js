@@ -93,10 +93,13 @@ ipcMain.handle('print-raw', async (event, printerName, transaction, workshop) =>
         try {
           const { PrismaClient } = require('@prisma/client');
           const prisma = new PrismaClient();
-          w = await prisma.workshop.findFirst();
+          const dbWorkshop = await prisma.workshop.findFirst();
+          if (dbWorkshop) w = dbWorkshop;
+          else w = { name: 'JAKARTA MOTOR' };
+          await prisma.$disconnect();
         } catch (err) {
-          console.error("Failed to fetch workshop for raw print", err);
-          w = {};
+          console.error("Prisma fetch failed for print-raw, using default", err);
+          w = { name: 'JAKARTA MOTOR' };
         }
       }
       

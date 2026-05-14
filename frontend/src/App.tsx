@@ -27,14 +27,24 @@ import { Toaster } from 'react-hot-toast';
 
 function App() {
   const [user, setUser] = useState<any>(() => {
-    const saved = localStorage.getItem('user');
-    return saved ? JSON.parse(saved) : null;
+    try {
+      const saved = localStorage.getItem('user');
+      return saved ? JSON.parse(saved) : null;
+    } catch (e) {
+      console.error("Failed to parse user from localStorage", e);
+      return null;
+    }
   });
+  
   const [activePage, setActivePage] = useState('pos');
-  const [userRole, setUserRole] = useState<'admin' | 'cashier'>(() => {
-    const role = user?.role?.toLowerCase() || 'cashier';
-    return (role === 'kasir' || role === 'cashier') ? 'cashier' : 'admin';
-  });
+  
+  // Derived state for userRole to ensure it's always in sync with user
+  const userRole: 'admin' | 'cashier' = React.useMemo(() => {
+    if (!user) return 'cashier';
+    const roleStr = String(user.role || '').toLowerCase();
+    return (roleStr === 'kasir' || roleStr === 'cashier') ? 'cashier' : 'admin';
+  }, [user]);
+
   const [theme, setTheme] = useState<'dark' | 'light'>(() => {
     return (localStorage.getItem('theme') as 'dark' | 'light') || 'dark';
   });
@@ -60,8 +70,6 @@ function App() {
   if (!user) {
     const onLoginSuccess = (u: any) => {
       setUser(u);
-      const role = u.role?.toLowerCase();
-      setUserRole((role === 'kasir' || role === 'cashier') ? 'cashier' : 'admin');
       setActivePage('pos');
     };
     return <Login onLoginSuccess={onLoginSuccess} />;
@@ -126,7 +134,6 @@ function App() {
         activePage={activePage} 
         setActivePage={setActivePage} 
         userRole={userRole} 
-        setUserRole={setUserRole}
         onLogout={() => {
           localStorage.removeItem('token');
           localStorage.removeItem('user');
