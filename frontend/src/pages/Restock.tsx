@@ -85,6 +85,12 @@ const Restock: React.FC = () => {
     }
   };
 
+  const updateQuantity = (id: string, delta: number) => {
+    setItems(prev => prev.map(i => 
+      i.id === id ? { ...i, addQty: Math.max(1, i.addQty + delta) } : i
+    ));
+  };
+
   const updateItem = (id: string, field: keyof RestockItem, value: any) => {
     setItems(prev => prev.map(i => i.id === id ? { ...i, [field]: value } : i));
   };
@@ -363,7 +369,7 @@ const Restock: React.FC = () => {
                       </td>
                       <td className="px-6 py-5">
                         <div className="flex items-center justify-center gap-3">
-                          <button onClick={() => updateItem(item.id, 'addQty', Math.max(1, item.addQty - 1))} className="p-1 hover:bg-muted rounded"><Minus className="w-3 h-3" /></button>
+                          <button onClick={() => updateQuantity(item.id, -1)} className="p-1 hover:bg-muted rounded"><Minus className="w-3 h-3" /></button>
                           <input 
                             ref={el => qtyRefs.current[item.id] = el}
                             type="number" 
@@ -377,7 +383,7 @@ const Restock: React.FC = () => {
                               }
                             }}
                           />
-                          <button onClick={() => updateItem(item.id, 'addQty', item.addQty + 1)} className="p-1 hover:bg-muted rounded"><Plus className="w-3 h-3" /></button>
+                          <button onClick={() => updateQuantity(item.id, 1)} className="p-1 hover:bg-muted rounded"><Plus className="w-3 h-3" /></button>
                         </div>
                       </td>
                       <td className="px-6 py-5 text-center">

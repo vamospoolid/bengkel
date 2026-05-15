@@ -1086,9 +1086,9 @@ const POS: React.FC = () => {
                     </td>
                     <td className="py-4">
                       <div className="flex items-center justify-center bg-muted/30 rounded-xl p-1 border border-border/30">
-                        <button onClick={() => updateQuantity(item.id, item.quantity - 1)} className="p-1 hover:text-red-500 transition-colors"><Minus className="w-3 h-3" /></button>
+                        <button onClick={() => updateQuantity(item.id, -1)} className="p-1 hover:text-red-500 transition-colors"><Minus className="w-3 h-3" /></button>
                         <span className="w-6 text-center text-[11px] font-black">{item.quantity}</span>
-                        <button onClick={() => updateQuantity(item.id, item.quantity + 1)} className="p-1 hover:text-primary transition-colors"><Plus className="w-3 h-3" /></button>
+                        <button onClick={() => updateQuantity(item.id, 1)} className="p-1 hover:text-primary transition-colors"><Plus className="w-3 h-3" /></button>
                       </div>
                     </td>
                     <td className="py-4 text-right">

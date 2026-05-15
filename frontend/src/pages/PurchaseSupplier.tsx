@@ -126,11 +126,14 @@ const PurchaseSupplier: React.FC = () => {
     setItems(prev => prev.filter(i => i.productId !== id));
   };
 
+  const updateQuantity = (id: string, delta: number) => {
+    setItems(prev => prev.map(i => 
+      i.productId === id ? { ...i, quantity: Math.max(1, i.quantity + delta) } : i
+    ));
+  };
+
   const updateItem = (id: string, field: keyof PurchaseItem, value: string | number) => {
-    setItems(prev => {
-      const newItems = prev.map(i => i.productId === id ? { ...i, [field]: value } : i);
-      return newItems;
-    });
+    setItems(prev => prev.map(i => i.productId === id ? { ...i, [field]: value } : i));
   };
 
   const handleSave = async () => {
@@ -468,7 +471,7 @@ const PurchaseSupplier: React.FC = () => {
                         <div className="flex items-center justify-center gap-4">
                           <button 
                             type="button"
-                            onClick={() => updateItem(item.productId, 'quantity', Math.max(1, item.quantity - 1))} 
+                            onClick={() => updateQuantity(item.productId, -1)} 
                             className="p-2 bg-muted rounded-xl hover:bg-red-500/10 hover:text-red-500 transition-all"
                           >
                             <Minus className="w-4 h-4" />
@@ -492,7 +495,7 @@ const PurchaseSupplier: React.FC = () => {
                             />
                           <button 
                             type="button"
-                            onClick={() => updateItem(item.productId, 'quantity', item.quantity + 1)} 
+                            onClick={() => updateQuantity(item.productId, 1)} 
                             className="p-2 bg-muted rounded-xl hover:bg-green-500/10 hover:text-green-500 transition-all"
                           >
                             <Plus className="w-4 h-4" />
