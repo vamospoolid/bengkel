@@ -364,10 +364,17 @@ export const PurchasePage: React.FC = () => {
             <div className="space-y-6">
               <div className="space-y-3">
                 <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground block text-center">Jumlah Beli</label>
-                <div className="flex items-center justify-center gap-6">
-                  <button onClick={() => setTempQty(q => Math.max(1, q - 1))} className="w-14 h-14 bg-muted rounded-2xl flex items-center justify-center active:scale-90 transition-all"><Minus /></button>
-                  <span className="text-4xl font-black font-mono w-20 text-center">{tempQty}</span>
-                  <button onClick={() => setTempQty(q => q + 1)} className="w-14 h-14 bg-muted rounded-2xl flex items-center justify-center active:scale-90 transition-all"><Plus /></button>
+                <div className="flex items-center justify-center gap-4">
+                  <button onClick={() => setTempQty(q => Math.max(1, q - 1))} 
+                    className="w-14 h-14 bg-muted rounded-2xl flex items-center justify-center active:scale-90 transition-all text-2xl font-black">-</button>
+                  <input 
+                    type="number"
+                    className="text-4xl font-black font-mono w-24 text-center bg-transparent border-b-2 border-primary outline-none"
+                    value={tempQty}
+                    onChange={e => setTempQty(Math.max(1, parseInt(e.target.value) || 0))}
+                  />
+                  <button onClick={() => setTempQty(q => q + 1)} 
+                    className="w-14 h-14 bg-muted rounded-2xl flex items-center justify-center active:scale-90 transition-all text-2xl font-black">+</button>
                 </div>
               </div>
 
@@ -378,8 +385,9 @@ export const PurchasePage: React.FC = () => {
                   <input 
                     type="number"
                     className="w-full bg-muted border border-border rounded-2xl pl-12 pr-4 py-4 font-black text-lg focus:ring-2 focus:ring-primary/40 outline-none"
-                    value={tempPrice}
-                    onChange={e => setTempPrice(parseInt(e.target.value) || 0)}
+                    value={tempPrice === 0 ? '' : tempPrice}
+                    placeholder="0"
+                    onChange={e => setTempPrice(parseFloat(e.target.value) || 0)}
                   />
                 </div>
               </div>
