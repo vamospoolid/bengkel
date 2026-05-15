@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Link, useLocation } from 'react-router-dom';
-import { Home, Wrench, Package, User, Wifi, Settings as SettingsIcon, X, DollarSign, TrendingUp, TrendingDown, UserCheck, ArrowRight, Plus, RotateCcw, Loader2, LogOut } from 'lucide-react';
+import { Home, Wrench, Package, User, Wifi, Settings as SettingsIcon, X, DollarSign, TrendingUp, TrendingDown, UserCheck, ArrowRight, Plus, RotateCcw, Loader2, LogOut, BarChart3 } from 'lucide-react';
 import api, { updateApiBaseUrl } from './api';
 import { Servis } from './pages/Servis';
 import { StokPage } from './pages/StokPage';
@@ -10,6 +10,7 @@ import { PurchasePage } from './pages/PurchasePage';
 import { StockLogsPage } from './pages/StockLogsPage';
 import { CatalogPage } from './pages/CatalogPage';
 import { OpnamePage } from './pages/OpnamePage';
+import { LaporanPage } from './pages/LaporanPage';
 
 // ─── Bottom Nav ────────────────────────────────────────────────────────────────
 const BottomNav = () => {
@@ -19,7 +20,7 @@ const BottomNav = () => {
     { path: '/servis', label: 'Servis',  icon: Wrench },
     { path: '/catalog', label: 'Input',   icon: Plus, isAction: true },
     { path: '/stok',    label: 'Gudang',  icon: Package },
-    { path: '/akun',    label: 'Akun',    icon: User },
+    { path: '/laporan', label: 'Laporan', icon: BarChart3 },
   ];
 
   return (
@@ -226,9 +227,22 @@ const Dashboard = ({ user, onLogout }: { user: any; onLogout: () => void }) => {
             <ArrowRight className="w-5 h-5 text-muted-foreground group-hover:text-orange-500 transition-all" />
           </Link>
 
-          <Link to="/opname" className="flex items-center justify-between p-6 active:bg-white/5 transition-all group">
+          <Link to="/laporan" className="flex items-center justify-between p-6 active:bg-white/5 transition-all group border-b border-white/5">
             <div className="flex items-center gap-4">
               <div className="w-12 h-12 bg-purple-500/10 rounded-2xl flex items-center justify-center text-purple-500 group-hover:scale-110 transition-all">
+                <BarChart3 className="w-6 h-6" />
+              </div>
+              <div>
+                <p className="font-black text-sm uppercase tracking-tight">Laporan Bisnis</p>
+                <p className="text-[10px] text-muted-foreground font-medium">Analisis laba rugi & top performa</p>
+              </div>
+            </div>
+            <ArrowRight className="w-5 h-5 text-muted-foreground group-hover:text-purple-500 transition-all" />
+          </Link>
+
+          <Link to="/opname" className="flex items-center justify-between p-6 active:bg-white/5 transition-all group">
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 bg-zinc-500/10 rounded-2xl flex items-center justify-center text-zinc-500 group-hover:scale-110 transition-all">
                 <RotateCcw className="w-5 h-5" />
               </div>
               <div>
@@ -236,7 +250,7 @@ const Dashboard = ({ user, onLogout }: { user: any; onLogout: () => void }) => {
                 <p className="text-[10px] text-muted-foreground font-medium">Audit fisik gudang (Scan & Count)</p>
               </div>
             </div>
-            <ArrowRight className="w-5 h-5 text-muted-foreground group-hover:text-purple-500 transition-all" />
+            <ArrowRight className="w-5 h-5 text-muted-foreground group-hover:text-zinc-500 transition-all" />
           </Link>
         </div>
       </div>
@@ -425,6 +439,7 @@ function App() {
             <Route path="/finance" element={<FinancePage />} />
             <Route path="/shopping-list" element={<ShoppingListPage />} />
             <Route path="/akun"   element={<Akun user={user} onLogout={handleLogout} />} />
+            <Route path="/laporan" element={<LaporanPage />} />
           </Routes>
         </main>
         <BottomNav />
