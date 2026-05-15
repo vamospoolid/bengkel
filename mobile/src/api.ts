@@ -3,7 +3,7 @@ import axios from 'axios';
 const getServerUrl = () => {
   const savedIp = localStorage.getItem('server_ip');
   if (savedIp) return `http://${savedIp}/api`;
-  return `http://${window.location.hostname}/api`;
+  return `http://173.212.243.240:3002/api`;
 };
 
 const api = axios.create({

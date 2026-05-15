@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Link, useLocation } from 'react-router-dom';
-import { Home, Wrench, Package, User, AlertCircle, Wifi, Settings as SettingsIcon, X, DollarSign, TrendingUp, TrendingDown, UserCheck, ArrowRight, Plus, RotateCcw, Loader2 } from 'lucide-react';
+import { Home, Wrench, Package, User, Wifi, Settings as SettingsIcon, X, DollarSign, TrendingUp, TrendingDown, UserCheck, ArrowRight, Plus, RotateCcw, Loader2, LogOut } from 'lucide-react';
 import api, { updateApiBaseUrl } from './api';
 import { Servis } from './pages/Servis';
 import { StokPage } from './pages/StokPage';
@@ -18,8 +18,8 @@ const BottomNav = () => {
     { path: '/',       label: 'Beranda', icon: Home },
     { path: '/servis', label: 'Servis',  icon: Wrench },
     { path: '/catalog', label: 'Input',   icon: Plus, isAction: true },
-    { path: '/finance', label: 'Finance', icon: DollarSign },
     { path: '/stok',    label: 'Gudang',  icon: Package },
+    { path: '/akun',    label: 'Akun',    icon: User },
   ];
 
   return (
@@ -62,7 +62,7 @@ const BottomNav = () => {
 };
 
 // ─── Dashboard ─────────────────────────────────────────────────────────────────
-const Dashboard = ({ user }: { user: any }) => {
+const Dashboard = ({ user, onLogout }: { user: any; onLogout: () => void }) => {
   const [stats, setStats] = useState({ queued: 0, progress: 0, done: 0, lowStock: 0 });
   const [finance, setFinance] = useState({ income: 0, expense: 0 });
 
@@ -107,9 +107,14 @@ const Dashboard = ({ user }: { user: any }) => {
             {user?.name?.split(' ')[0] || 'User'}
           </h1>
         </div>
-        <div className="w-14 h-14 glass-card rounded-[1.5rem] flex items-center justify-center border border-white/10 shadow-2xl relative">
-          <img src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${user?.username}`} alt="avatar" className="w-10 h-10" />
-          <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-green-500 rounded-full border-2 border-background" />
+        <div className="flex items-center gap-3">
+          <button onClick={onLogout} className="p-3 bg-red-500/10 text-red-500 rounded-2xl border border-red-500/20 active:scale-90 transition-all">
+            <LogOut className="w-5 h-5" />
+          </button>
+          <Link to="/akun" className="w-14 h-14 glass-card rounded-[1.5rem] flex items-center justify-center border border-white/10 shadow-2xl relative active:scale-90 transition-transform">
+            <img src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${user?.username}`} alt="avatar" className="w-10 h-10" />
+            <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-green-500 rounded-full border-2 border-background" />
+          </Link>
         </div>
       </div>
 
@@ -276,7 +281,7 @@ const Akun = ({ user, onLogout }: { user: any; onLogout: () => void }) => (
 
     <button onClick={onLogout}
       className="w-full p-5 bg-red-500/10 text-red-500 border border-red-500/20 rounded-[2rem] font-black uppercase tracking-[0.2em] hover:bg-red-500 hover:text-white transition-all flex items-center justify-center gap-3 active:scale-95 shadow-xl shadow-red-500/5">
-      <AlertCircle className="w-6 h-6" /> Keluar Aplikasi
+      <LogOut className="w-6 h-6" /> Keluar Aplikasi
     </button>
   </div>
 );
@@ -287,7 +292,7 @@ const Login = ({ onLogin }: { onLogin: (u: any) => void }) => {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
-  const [tempIp, setTempIp] = useState(localStorage.getItem('server_ip') || '');
+  const [tempIp, setTempIp] = useState(localStorage.getItem('server_ip') || '173.212.243.240:3002');
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -410,7 +415,7 @@ function App() {
       <div className="min-h-screen bg-background text-foreground font-sans">
         <main className="flex-1 pb-20">
           <Routes>
-            <Route path="/"       element={<Dashboard user={user} />} />
+            <Route path="/"       element={<Dashboard user={user} onLogout={handleLogout} />} />
             <Route path="/servis" element={<Servis />} />
             <Route path="/stok"   element={<StokPage />} />
             <Route path="/catalog" element={<CatalogPage />} />

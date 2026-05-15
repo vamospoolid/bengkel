@@ -180,55 +180,56 @@ export const CatalogPage: React.FC = () => {
         </div>
       </div>
 
-      <div className="px-4 pt-6 space-y-6">
-        {/* Success Alert */}
-        {showSuccess && (
-          <div className="bg-green-500/10 border border-green-500/20 rounded-[2rem] p-5 flex items-center gap-4 animate-in zoom-in duration-300">
-            <div className="w-10 h-10 bg-green-500 rounded-full flex items-center justify-center text-white shadow-lg shadow-green-500/20">
-              <CheckCircle2 className="w-6 h-6" />
+      <div className="pt-6 space-y-6">
+        {/* Alerts with padding */}
+        <div className="px-4 space-y-4">
+          {/* Success Alert */}
+          {showSuccess && (
+            <div className="bg-green-500/10 border border-green-500/20 rounded-[2rem] p-5 flex items-center gap-4 animate-in zoom-in duration-300">
+              <div className="w-10 h-10 bg-green-500 rounded-full flex items-center justify-center text-white shadow-lg shadow-green-500/20">
+                <CheckCircle2 className="w-6 h-6" />
+              </div>
+              <div>
+                <p className="font-black text-sm text-green-400 uppercase tracking-tight">Barang Berhasil Disimpan!</p>
+                <p className="text-[10px] text-green-500/70 font-bold uppercase tracking-widest">Data telah masuk ke server pusat</p>
+              </div>
             </div>
-            <div>
-              <p className="font-black text-sm text-green-400 uppercase tracking-tight">Barang Berhasil Disimpan!</p>
-              <p className="text-[10px] text-green-500/70 font-bold uppercase tracking-widest">Data telah masuk ke server pusat</p>
-            </div>
-          </div>
-        )}
+          )}
 
-        {/* Duplicate Alert */}
-        {duplicateItem && (
-          <div className="bg-orange-500/10 border border-orange-500/20 rounded-[2rem] p-5 flex items-center gap-4 animate-in zoom-in duration-300">
-            <div className="w-10 h-10 bg-orange-500 rounded-full flex items-center justify-center text-white shadow-lg shadow-orange-500/20">
-              <AlertTriangle className="w-6 h-6" />
+          {/* Duplicate Alert */}
+          {duplicateItem && (
+            <div className="bg-orange-500/10 border border-orange-500/20 rounded-[2rem] p-5 flex items-center gap-4 animate-in zoom-in duration-300">
+              <div className="w-10 h-10 bg-orange-500 rounded-full flex items-center justify-center text-white shadow-lg shadow-orange-500/20">
+                <AlertTriangle className="w-6 h-6" />
+              </div>
+              <div className="flex-1">
+                <p className="font-black text-sm text-orange-400 uppercase tracking-tight">Barcode Terdaftar!</p>
+                <p className="text-[10px] text-orange-500/70 font-bold uppercase tracking-widest leading-tight">
+                  Barang: <span className="text-orange-400">{duplicateItem.name}</span>
+                </p>
+              </div>
+              <button onClick={() => setDuplicateItem(null)} className="p-2 bg-orange-500/10 rounded-xl text-orange-500"><X className="w-4 h-4" /></button>
             </div>
-            <div className="flex-1">
-              <p className="font-black text-sm text-orange-400 uppercase tracking-tight">Barcode Terdaftar!</p>
-              <p className="text-[10px] text-orange-500/70 font-bold uppercase tracking-widest leading-tight">
-                Barang: <span className="text-orange-400">{duplicateItem.name}</span>
-              </p>
-            </div>
-            <button onClick={() => setDuplicateItem(null)} className="p-2 bg-orange-500/10 rounded-xl text-orange-500"><X className="w-4 h-4" /></button>
-          </div>
-        )}
+          )}
 
-        {/* Error Alert */}
-        {error && (
-          <div className="bg-red-500/10 border border-red-500/20 rounded-[2rem] p-5 flex items-center gap-4 animate-in slide-in-from-top duration-300">
-            <div className="w-10 h-10 bg-red-500 rounded-full flex items-center justify-center text-white">
-              <AlertTriangle className="w-6 h-6" />
+          {/* Error Alert */}
+          {error && (
+            <div className="bg-red-500/10 border border-red-500/20 rounded-[2rem] p-5 flex items-center gap-4 animate-in slide-in-from-top duration-300">
+              <div className="w-10 h-10 bg-red-500 rounded-full flex items-center justify-center text-white">
+                <AlertTriangle className="w-6 h-6" />
+              </div>
+              <div className="flex-1">
+                <p className="font-black text-sm text-red-400 uppercase tracking-tight">Gagal Menyimpan</p>
+                <p className="text-[10px] text-red-500/70 font-bold">{error}</p>
+              </div>
+              <button onClick={() => setError(null)} className="p-2 bg-red-500/10 rounded-xl text-red-500"><X className="w-4 h-4" /></button>
             </div>
-            <div className="flex-1">
-              <p className="font-black text-sm text-red-400 uppercase tracking-tight">Gagal Menyimpan</p>
-              <p className="text-[10px] text-red-500/70 font-bold">{error}</p>
-            </div>
-            <button onClick={() => setError(null)} className="p-2 bg-red-500/10 rounded-xl text-red-500"><X className="w-4 h-4" /></button>
-          </div>
-        )}
+          )}
+        </div>
 
-        {/* Input Form Card */}
-        <form onSubmit={handleSubmit} className="glass-card rounded-[2.5rem] p-8 space-y-8 border-white/5 relative overflow-hidden group">
-          <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 rounded-full blur-3xl -mr-10 -mt-10" />
-          
-          <div className="space-y-6 relative z-10">
+        {/* Input Form - Full Screen Style */}
+        <form onSubmit={handleSubmit} className="px-5 pb-12 space-y-8 relative z-10">
+          <div className="space-y-8">
             {/* Identity Section */}
             <div className="space-y-4">
               <p className="text-[10px] font-black uppercase tracking-[0.3em] text-primary ml-1">Identitas Barang</p>
@@ -239,7 +240,7 @@ export const CatalogPage: React.FC = () => {
                   <Package className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                   <input required placeholder="Contoh: Kampas Rem Vario"
                     value={form.name} onChange={e => setForm({...form, name: e.target.value})}
-                    className="w-full bg-background/50 border border-white/10 rounded-2xl pl-12 pr-6 py-4 text-sm font-bold focus:ring-2 focus:ring-primary/40 outline-none transition-all" />
+                    className="w-full bg-white/5 border border-white/10 rounded-2xl pl-12 pr-6 py-5 text-sm font-bold focus:ring-2 focus:ring-primary/40 outline-none transition-all shadow-inner" />
                 </div>
               </div>
 
@@ -250,7 +251,7 @@ export const CatalogPage: React.FC = () => {
                     <Tag className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                     <input placeholder="Astra, TDR, dll"
                       value={form.brand} onChange={e => setForm({...form, brand: e.target.value})}
-                      className="w-full bg-background/50 border border-white/10 rounded-2xl pl-12 pr-6 py-4 text-sm font-bold focus:ring-2 focus:ring-primary/40 outline-none transition-all" />
+                      className="w-full bg-white/5 border border-white/10 rounded-2xl pl-12 pr-6 py-5 text-sm font-bold focus:ring-2 focus:ring-primary/40 outline-none transition-all shadow-inner" />
                   </div>
                 </div>
                 <div className="space-y-2">
@@ -259,7 +260,7 @@ export const CatalogPage: React.FC = () => {
                     <Layers className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                     <input placeholder="Oli, Sparepart..."
                       value={form.category} onChange={e => setForm({...form, category: e.target.value})}
-                      className="w-full bg-background/50 border border-white/10 rounded-2xl pl-12 pr-6 py-4 text-sm font-bold focus:ring-2 focus:ring-primary/40 outline-none transition-all" />
+                      className="w-full bg-white/5 border border-white/10 rounded-2xl pl-12 pr-6 py-5 text-sm font-bold focus:ring-2 focus:ring-primary/40 outline-none transition-all shadow-inner" />
                   </div>
                 </div>
               </div>
@@ -270,7 +271,7 @@ export const CatalogPage: React.FC = () => {
                   <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                   <input placeholder="Rak A-1, Lemari Depan..."
                     value={form.location} onChange={e => setForm({...form, location: e.target.value})}
-                    className="w-full bg-background/50 border border-white/10 rounded-2xl pl-12 pr-6 py-4 text-sm font-bold focus:ring-2 focus:ring-primary/40 outline-none transition-all" />
+                    className="w-full bg-white/5 border border-white/10 rounded-2xl pl-12 pr-6 py-5 text-sm font-bold focus:ring-2 focus:ring-primary/40 outline-none transition-all shadow-inner" />
                 </div>
               </div>
             </div>
@@ -285,7 +286,7 @@ export const CatalogPage: React.FC = () => {
                   <span className="absolute left-4 top-1/2 -translate-y-1/2 text-xs font-black text-muted-foreground">Rp</span>
                   <input type="number" required
                     value={form.purchasePrice || ''} onChange={e => setForm({...form, purchasePrice: parseFloat(e.target.value) || 0})}
-                    className="w-full bg-background/50 border border-white/10 rounded-2xl pl-12 pr-6 py-4 text-sm font-black focus:ring-2 focus:ring-green-400/40 outline-none transition-all" />
+                    className="w-full bg-white/5 border border-white/10 rounded-2xl pl-12 pr-6 py-5 text-sm font-black focus:ring-2 focus:ring-green-400/40 outline-none transition-all shadow-inner" />
                 </div>
               </div>
 
@@ -296,7 +297,7 @@ export const CatalogPage: React.FC = () => {
                     <span className="absolute left-4 top-1/2 -translate-y-1/2 text-xs font-black text-primary">Rp</span>
                     <input type="number" required
                       value={form.priceNormal || ''} onChange={e => setForm({...form, priceNormal: parseFloat(e.target.value) || 0})}
-                      className="w-full bg-primary/5 border border-primary/20 rounded-2xl pl-12 pr-6 py-4 text-sm font-black text-primary focus:ring-2 focus:ring-primary/40 outline-none transition-all" />
+                      className="w-full bg-primary/5 border border-primary/20 rounded-2xl pl-12 pr-6 py-5 text-sm font-black text-primary focus:ring-2 focus:ring-primary/40 outline-none transition-all" />
                   </div>
                 </div>
               </div>
@@ -308,7 +309,7 @@ export const CatalogPage: React.FC = () => {
                     <span className="absolute left-4 top-1/2 -translate-y-1/2 text-[10px] font-black text-blue-400">Rp</span>
                     <input type="number"
                       value={form.priceGrosir || ''} onChange={e => setForm({...form, priceGrosir: parseFloat(e.target.value) || 0})}
-                      className="w-full bg-blue-500/5 border border-blue-500/10 rounded-2xl pl-10 pr-4 py-4 text-sm font-black text-blue-400 focus:ring-2 focus:ring-blue-400/40 outline-none transition-all" />
+                      className="w-full bg-blue-500/5 border border-blue-500/10 rounded-2xl pl-10 pr-4 py-5 text-sm font-black text-blue-400 focus:ring-2 focus:ring-blue-400/40 outline-none transition-all" />
                   </div>
                 </div>
                 <div className="space-y-2">
@@ -317,7 +318,7 @@ export const CatalogPage: React.FC = () => {
                     <span className="absolute left-4 top-1/2 -translate-y-1/2 text-[10px] font-black text-orange-400">Rp</span>
                     <input type="number"
                       value={form.priceMitra || ''} onChange={e => setForm({...form, priceMitra: parseFloat(e.target.value) || 0})}
-                      className="w-full bg-orange-500/5 border border-orange-500/10 rounded-2xl pl-10 pr-4 py-4 text-sm font-black text-orange-400 focus:ring-2 focus:ring-orange-400/40 outline-none transition-all" />
+                      className="w-full bg-orange-500/5 border border-orange-500/10 rounded-2xl pl-10 pr-4 py-5 text-sm font-black text-orange-400 focus:ring-2 focus:ring-orange-400/40 outline-none transition-all" />
                   </div>
                 </div>
               </div>
@@ -333,15 +334,15 @@ export const CatalogPage: React.FC = () => {
                   <input required placeholder="Scan atau Generate..."
                     value={form.barcode} 
                     onChange={e => handleBarcodeResult(e.target.value)}
-                    className="w-full bg-purple-500/5 border border-purple-500/20 rounded-2xl pl-12 pr-4 py-4 text-xs font-mono font-bold text-purple-400 focus:ring-2 focus:ring-purple-400/40 outline-none transition-all overflow-hidden text-ellipsis" />
+                    className="w-full bg-purple-500/5 border border-purple-500/20 rounded-2xl pl-12 pr-4 py-5 text-xs font-mono font-bold text-purple-400 focus:ring-2 focus:ring-purple-400/40 outline-none transition-all overflow-hidden text-ellipsis shadow-inner" />
                 </div>
                 <button type="button" onClick={startScanner}
-                  className="px-5 bg-purple-500 text-white rounded-2xl shadow-lg shadow-purple-500/20 active:scale-90 transition-all flex items-center justify-center">
-                  <Camera className="w-5 h-5" />
+                  className="px-6 bg-purple-500 text-white rounded-2xl shadow-lg shadow-purple-500/20 active:scale-90 transition-all flex items-center justify-center">
+                  <Camera className="w-6 h-6" />
                 </button>
                 <button type="button" onClick={generateBarcode}
-                  className="px-5 bg-zinc-800 text-white rounded-2xl border border-white/10 active:scale-90 transition-all flex items-center justify-center">
-                  <RefreshCw className="w-5 h-5" />
+                  className="px-6 bg-zinc-800 text-white rounded-2xl border border-white/10 active:scale-90 transition-all flex items-center justify-center">
+                  <RefreshCw className="w-6 h-6" />
                 </button>
               </div>
               <p className="text-[8px] text-muted-foreground italic px-2 leading-relaxed">* Gunakan tombol refresh untuk generate QR Code otomatis jika barang belum ada barcode.</p>
@@ -353,18 +354,18 @@ export const CatalogPage: React.FC = () => {
                   <label className="text-[9px] font-black uppercase tracking-widest text-muted-foreground ml-2">Stok Awal</label>
                   <input type="number"
                     value={form.stock || ''} onChange={e => setForm({...form, stock: parseInt(e.target.value) || 0})}
-                    className="w-full bg-background/50 border border-white/10 rounded-2xl px-6 py-4 text-sm font-black focus:ring-2 focus:ring-primary/40 outline-none transition-all" />
+                    className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-5 text-sm font-black focus:ring-2 focus:ring-primary/40 outline-none transition-all shadow-inner" />
                 </div>
                 <div className="space-y-2">
                   <label className="text-[9px] font-black uppercase tracking-widest text-muted-foreground ml-2">Minimum Stok</label>
                   <input type="number"
                     value={form.minStock || ''} onChange={e => setForm({...form, minStock: parseInt(e.target.value) || 0})}
-                    className="w-full bg-background/50 border border-white/10 rounded-2xl px-6 py-4 text-sm font-black focus:ring-2 focus:ring-primary/40 outline-none transition-all" />
+                    className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-5 text-sm font-black focus:ring-2 focus:ring-primary/40 outline-none transition-all shadow-inner" />
                 </div>
             </div>
 
             <button type="submit" disabled={isSaving}
-              className="w-full orange-gradient text-white py-6 rounded-3xl font-black uppercase tracking-[0.2em] shadow-2xl shadow-primary/30 active:scale-95 transition-all flex items-center justify-center gap-3 disabled:opacity-50 text-sm mt-4">
+              className="w-full orange-gradient text-white py-6 rounded-3xl font-black uppercase tracking-[0.2em] shadow-2xl shadow-primary/40 active:scale-95 transition-all flex items-center justify-center gap-3 disabled:opacity-50 text-sm mt-6">
               {isSaving ? <Loader2 className="w-6 h-6 animate-spin" /> : <Plus className="w-6 h-6" />}
               Daftarkan Barang Baru
             </button>
