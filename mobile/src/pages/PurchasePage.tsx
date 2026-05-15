@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { 
   ArrowLeft, Search, Camera, Truck, FileText, 
-  Calendar, Plus, Minus, 
+  Calendar, Plus,
   Loader2, Save, ShoppingCart, ScanLine 
 } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
