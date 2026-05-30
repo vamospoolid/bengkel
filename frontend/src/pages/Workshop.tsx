@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Plus, Wrench, Clock, CheckCircle2, X, User, AlertCircle, Loader2, Trash2, Car, Settings, Phone, ClipboardList, Bike, Camera, Eye } from 'lucide-react';
+import { Search, Plus, Minus, Wrench, Clock, CheckCircle2, X, User, AlertCircle, Loader2, Trash2, Car, Settings, Phone, ClipboardList, Bike, Camera, Eye } from 'lucide-react';
 import api from '../api';
 import socket from '../socket';
 import { toast } from 'react-hot-toast';
