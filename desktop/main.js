@@ -21,7 +21,7 @@ function createWindow() {
 
   // CONNECT TO VPS BY DEFAULT
   // Ini memastikan Electron selalu mengambil data terbaru dari Cloud
-  const VPS_URL = 'http://173.212.243.240:5173';
+  const VPS_URL = 'http://173.212.243.240';
   
   mainWindow.loadURL(VPS_URL).catch(e => {
     console.error("Gagal memuat VPS, mencoba versi lokal sebagai fallback...", e);
@@ -32,6 +32,22 @@ function createWindow() {
       frontendPath = path.join(__dirname, '../frontend/dist/index.html');
     }
     mainWindow.loadFile(frontendPath);
+  });
+
+  // Shortcut keyboard untuk hard reload (clear cache) dan devtools
+  mainWindow.webContents.on('before-input-event', (event, input) => {
+    if (input.control && input.shift && input.key.toLowerCase() === 'r') {
+      mainWindow.webContents.session.clearCache().then(() => {
+        mainWindow.webContents.reloadIgnoringCache();
+      });
+      event.preventDefault();
+    } else if (input.control && input.key.toLowerCase() === 'r') {
+      mainWindow.webContents.reload();
+      event.preventDefault();
+    } else if (input.control && input.shift && input.key.toLowerCase() === 'i') {
+      mainWindow.webContents.toggleDevTools();
+      event.preventDefault();
+    }
   });
 
   // Matikan panel devtools otomatis agar rapi
