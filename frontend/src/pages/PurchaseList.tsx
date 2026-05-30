@@ -316,23 +316,23 @@ const PurchaseList: React.FC = () => {
                )}
             </div>
 
-            <div className="p-8 border-t border-border/50 bg-zinc-900 text-white flex items-center justify-between">
+            <div className="p-6 border-t border-border/50 bg-zinc-900 text-white flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                <div>
                   <p className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">Grand Total</p>
                   <p className="text-xl font-black italic text-primary">Rp {selectedPurchase.totalAmount.toLocaleString('id-ID')}</p>
                </div>
-                <div className="flex items-center gap-3">
+               <div className="flex flex-wrap items-center gap-2">
                   {selectedPurchase.status === 'HUTANG' && (
                     <button 
                       onClick={handlePayInvoice}
-                      className="px-6 py-3 bg-green-500 text-white hover:bg-green-600 rounded-xl font-black text-xs uppercase tracking-widest shadow-lg shadow-green-500/20 transition-all flex items-center gap-2"
+                      className="px-4 py-2.5 bg-green-500 text-white hover:bg-green-600 rounded-xl font-black text-xs uppercase tracking-widest shadow-lg shadow-green-500/20 transition-all flex items-center gap-2 whitespace-nowrap shrink-0"
                     >
                       <CheckCircle2 className="w-4 h-4" /> Lunasin Nota
                     </button>
                   )}
-                  <button onClick={() => { setReturnItems({}); setShowReturnModal(true); }} className="px-6 py-3 bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white border border-red-500/20 rounded-xl font-black text-xs uppercase tracking-widest transition-all">Retur Barang</button>
-                  <button onClick={handleDeletePurchase} className="px-5 py-3 bg-red-700/20 text-red-400 hover:bg-red-700 hover:text-white border border-red-700/30 rounded-xl font-black text-xs uppercase tracking-widest transition-all flex items-center gap-2"><Trash2 className="w-3.5 h-3.5" /> Hapus Nota</button>
-                  <button onClick={() => setSelectedPurchase(null)} className="px-8 py-3 bg-white/10 hover:bg-white/20 rounded-xl font-black text-xs uppercase tracking-widest transition-all">Tutup Detail</button>
+                  <button onClick={() => { setReturnItems({}); setShowReturnModal(true); }} className="px-4 py-2.5 bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white border border-red-500/20 rounded-xl font-black text-xs uppercase tracking-widest transition-all whitespace-nowrap shrink-0">Retur Barang</button>
+                  <button onClick={handleDeletePurchase} className="px-4 py-2.5 bg-red-700/20 text-red-400 hover:bg-red-700 hover:text-white border border-red-700/30 rounded-xl font-black text-xs uppercase tracking-widest transition-all flex items-center gap-2 whitespace-nowrap shrink-0"><Trash2 className="w-3.5 h-3.5" /> Hapus Nota</button>
+                  <button onClick={() => setSelectedPurchase(null)} className="px-5 py-2.5 bg-white/10 hover:bg-white/20 rounded-xl font-black text-xs uppercase tracking-widest transition-all whitespace-nowrap shrink-0">Tutup Detail</button>
                 </div>
             </div>
           </div>
