@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { TrendingUp, Package, Users, Wrench, AlertTriangle, Loader2, ArrowRight, Activity, Calendar, Truck, Clock } from 'lucide-react';
+import { TrendingUp, Package, Users, Wrench, AlertTriangle, Loader2, ArrowRight, Activity, Calendar, Truck, Clock, StickyNote, Plus, X } from 'lucide-react';
 import api from '../api';
+import { toast } from 'react-hot-toast';
 
 interface DashboardProps {
   setActivePage: (page: string) => void;
@@ -11,9 +12,52 @@ const Dashboard: React.FC<DashboardProps> = ({ setActivePage }) => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  const [notes, setNotes] = useState<{ id: string; text: string; createdAt: string }[]>([]);
+  const [newNote, setNewNote] = useState('');
+  const [isSavingNote, setIsSavingNote] = useState(false);
+
   useEffect(() => {
     fetchDashboard();
+    fetchNotes();
   }, []);
+
+  const fetchNotes = async () => {
+    try {
+      const res = await api.get('/app-settings/dashboard-notes');
+      setNotes(res.data?.items || []);
+    } catch {
+      setNotes([]);
+    }
+  };
+
+  const addNote = async () => {
+    const text = newNote.trim();
+    if (!text) return;
+    setIsSavingNote(true);
+    try {
+      const newItem = { id: Date.now().toString(), text, createdAt: new Date().toISOString() };
+      const updated = [newItem, ...notes];
+      await api.put('/app-settings/dashboard-notes', { items: updated });
+      setNotes(updated);
+      setNewNote('');
+      toast.success('Catatan ditambahkan!');
+    } catch {
+      toast.error('Gagal menyimpan catatan.');
+    } finally {
+      setIsSavingNote(false);
+    }
+  };
+
+  const deleteNote = async (id: string) => {
+    try {
+      const updated = notes.filter(n => n.id !== id);
+      await api.put('/app-settings/dashboard-notes', { items: updated });
+      setNotes(updated);
+      toast.success('Catatan dihapus.');
+    } catch {
+      toast.error('Gagal menghapus catatan.');
+    }
+  };
 
   const fetchDashboard = async () => {
     try {
@@ -128,18 +172,16 @@ const Dashboard: React.FC<DashboardProps> = ({ setActivePage }) => {
         })}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         
         {/* Supplier Due Alerts Section - ONLY FOR ADMIN */}
         {userRole === 'admin' && (
-          <div className="lg:col-span-1 glass-card p-8 rounded-[2.5rem] border border-border/50">
-            <div className="flex items-center justify-between mb-8">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-red-500/10 rounded-lg"><Clock className="text-red-500 w-5 h-5" /></div>
-                <h3 className="font-black text-xl tracking-tight">Hutang Jatuh Tempo</h3>
-              </div>
+          <div className="lg:col-span-1 glass-card p-6 rounded-[2.5rem] border border-border/50">
+            <div className="flex items-center gap-3 mb-6">
+              <div className="p-2 bg-red-500/10 rounded-lg"><Clock className="text-red-500 w-5 h-5" /></div>
+              <h3 className="font-black text-base tracking-tight">Hutang Jatuh Tempo</h3>
             </div>
-            <div className="space-y-3">
+            <div className="space-y-3 max-h-64 overflow-y-auto">
               {data.duePurchases && data.duePurchases.length > 0 ? (
                 data.duePurchases.map((p: any) => (
                   <div key={p.id} className="group p-4 bg-red-500/5 rounded-2xl border border-red-500/20 hover:border-red-500/50 transition-all">
@@ -155,9 +197,9 @@ const Dashboard: React.FC<DashboardProps> = ({ setActivePage }) => {
                   </div>
                 ))
               ) : (
-                <div className="flex flex-col items-center justify-center py-12 text-center opacity-50">
-                  <Truck className="w-12 h-12 mb-3 text-muted-foreground" />
-                  <p className="text-sm font-bold uppercase tracking-widest">Tidak Ada Hutang</p>
+                <div className="flex flex-col items-center justify-center py-10 text-center opacity-50">
+                  <Truck className="w-10 h-10 mb-3 text-muted-foreground" />
+                  <p className="text-xs font-bold uppercase tracking-widest">Tidak Ada Hutang</p>
                 </div>
               )}
             </div>
@@ -165,40 +207,89 @@ const Dashboard: React.FC<DashboardProps> = ({ setActivePage }) => {
         )}
 
         {/* Low Stock Alert Section */}
-        <div className="lg:col-span-1 glass-card p-8 rounded-[2.5rem] border border-border/50">
-          <div className="flex items-center justify-between mb-8">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-orange-500/10 rounded-lg"><AlertTriangle className="text-orange-500 w-5 h-5" /></div>
-              <h3 className="font-black text-xl tracking-tight">Peringatan Stok</h3>
-            </div>
+        <div className="lg:col-span-1 glass-card p-6 rounded-[2.5rem] border border-border/50">
+          <div className="flex items-center gap-3 mb-6">
+            <div className="p-2 bg-orange-500/10 rounded-lg"><AlertTriangle className="text-orange-500 w-5 h-5" /></div>
+            <h3 className="font-black text-base tracking-tight">Peringatan Stok</h3>
           </div>
-          <div className="space-y-3">
+          <div className="space-y-3 max-h-64 overflow-y-auto">
             {data.lowStockList.length > 0 ? (
               data.lowStockList.map((part: any) => (
-                <div key={part.id} className="group flex items-center justify-between p-4 bg-muted/30 rounded-2xl border border-border/50 hover:border-orange-500/30 transition-all">
-                  <div className="flex items-center gap-3">
-                    <div className="w-2 h-2 rounded-full bg-orange-500 animate-pulse" />
-                    <div>
-                      <p className="font-black text-sm tracking-tight">{part.name}</p>
-                      <p className="text-[10px] font-bold text-muted-foreground uppercase">Sisa: <span className="text-orange-500">{part.stock}</span> • Min: {part.minStock}</p>
+                <div key={part.id} className="group flex items-center justify-between p-3 bg-muted/30 rounded-xl border border-border/50 hover:border-orange-500/30 transition-all">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-2 h-2 rounded-full bg-orange-500 animate-pulse shrink-0" />
+                    <div className="min-w-0">
+                      <p className="font-black text-xs tracking-tight truncate">{part.name}</p>
+                      <p className="text-[9px] font-bold text-muted-foreground uppercase">Sisa: <span className="text-orange-500">{part.stock}</span> • Min: {part.minStock}</p>
                     </div>
                   </div>
-                  <button className="p-2 bg-orange-500/10 text-orange-500 rounded-lg opacity-0 group-hover:opacity-100 transition-all">
-                    <ArrowRight className="w-4 h-4" />
-                  </button>
                 </div>
               ))
             ) : (
-              <div className="flex flex-col items-center justify-center py-12 text-center opacity-50">
-                <Package className="w-12 h-12 mb-3 text-muted-foreground" />
-                <p className="text-sm font-bold uppercase tracking-widest">Stok Aman</p>
+              <div className="flex flex-col items-center justify-center py-10 text-center opacity-50">
+                <Package className="w-10 h-10 mb-3 text-muted-foreground" />
+                <p className="text-xs font-bold uppercase tracking-widest">Stok Aman</p>
               </div>
             )}
           </div>
         </div>
 
-        {/* Workshop Status Table */}
-        <div className="lg:col-span-2 glass-card p-8 rounded-[2.5rem] border border-border/50">
+        {/* Catatan Barang Tidak Tersedia */}
+        <div className="lg:col-span-1 glass-card p-6 rounded-[2.5rem] border border-yellow-500/20 bg-yellow-500/[0.02]">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="p-2 bg-yellow-500/10 rounded-lg"><StickyNote className="text-yellow-500 w-5 h-5" /></div>
+            <div className="flex-1 min-w-0">
+              <h3 className="font-black text-base tracking-tight">Catatan Permintaan</h3>
+              <p className="text-[9px] text-muted-foreground uppercase font-bold tracking-widest">Barang belum tersedia</p>
+            </div>
+            <span className="text-[9px] font-black bg-yellow-500/10 text-yellow-500 px-2 py-0.5 rounded-full border border-yellow-500/20">{notes.length}</span>
+          </div>
+
+          {/* Input */}
+          <div className="flex gap-2 mb-4">
+            <input
+              type="text"
+              value={newNote}
+              onChange={e => setNewNote(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && addNote()}
+              placeholder="Tulis catatan barang..."
+              className="flex-1 bg-muted/50 border border-border/60 rounded-xl px-3 py-2 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-yellow-500/30 focus:border-yellow-500/40 placeholder:text-muted-foreground/50"
+            />
+            <button
+              onClick={addNote}
+              disabled={isSavingNote || !newNote.trim()}
+              className="p-2.5 bg-yellow-500/10 text-yellow-500 border border-yellow-500/20 rounded-xl hover:bg-yellow-500 hover:text-black transition-all disabled:opacity-40"
+            >
+              {isSavingNote ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
+            </button>
+          </div>
+
+          {/* Notes list */}
+          <div className="space-y-2 max-h-52 overflow-y-auto pr-1">
+            {notes.length === 0 ? (
+              <div className="py-8 text-center opacity-40">
+                <StickyNote className="w-8 h-8 mx-auto mb-2 text-muted-foreground" />
+                <p className="text-[10px] font-bold uppercase tracking-widest">Belum ada catatan</p>
+              </div>
+            ) : notes.map(note => (
+              <div key={note.id} className="group flex items-start gap-2 p-3 bg-yellow-500/5 border border-yellow-500/10 rounded-xl hover:border-yellow-500/30 transition-all">
+                <div className="w-1.5 h-1.5 rounded-full bg-yellow-500 mt-1.5 shrink-0" />
+                <p className="flex-1 text-xs font-bold leading-relaxed break-words">{note.text}</p>
+                <button
+                  onClick={() => deleteNote(note.id)}
+                  className="p-1 text-muted-foreground hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100 shrink-0"
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+
+      {/* Aktivitas Bengkel - Full Width */}
+      <div className="glass-card p-8 rounded-[2.5rem] border border-border/50">
           <div className="flex items-center justify-between mb-8">
             <div className="flex items-center gap-3">
               <div className="p-2 bg-primary/10 rounded-lg"><Activity className="text-primary w-5 h-5" /></div>
@@ -250,7 +341,6 @@ const Dashboard: React.FC<DashboardProps> = ({ setActivePage }) => {
             )}
           </div>
         </div>
-      </div>
     </div>
   );
 };
