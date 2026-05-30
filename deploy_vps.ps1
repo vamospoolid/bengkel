@@ -18,7 +18,7 @@ Write-Host ""
 # ── Cek SSH key tersedia ──────────────────────────────────────────────────────
 if (-not (Test-Path $KEY_PATH)) {
     Write-Host "[ERROR] SSH key tidak ditemukan. Jalankan setup_ssh_key.ps1 dulu!" -ForegroundColor Red
-    pause; exit 1
+    exit 1
 }
 
 # ── Helper functions ──────────────────────────────────────────────────────────
@@ -43,7 +43,7 @@ if ($ping -match "PONG") {
 } else {
     Write-Host "[ERROR] Tidak bisa konek VPS. Cek jaringan atau jalankan setup_ssh_key.ps1" -ForegroundColor Red
     Write-Host "Output: $ping" -ForegroundColor Gray
-    pause; exit 1
+    exit 1
 }
 Write-Host ""
 
@@ -112,7 +112,7 @@ Push-Location "$ROOT\frontend"
 $buildOut = npm run build 2>&1
 Write-Host $buildOut
 if ($LASTEXITCODE -ne 0) {
-    Write-Host "[ERROR] Build Frontend GAGAL!" -ForegroundColor Red; Pop-Location; pause; exit 1
+    Write-Host "[ERROR] Build Frontend GAGAL!" -ForegroundColor Red; Pop-Location; exit 1
 }
 Pop-Location
 Write-Host "[OK] Frontend built." -ForegroundColor Green
@@ -126,7 +126,7 @@ Push-Location "$ROOT\mobile"
 $buildMobile = npm run build 2>&1
 Write-Host $buildMobile
 if ($LASTEXITCODE -ne 0) {
-    Write-Host "[ERROR] Build Mobile GAGAL!" -ForegroundColor Red; Pop-Location; pause; exit 1
+    Write-Host "[ERROR] Build Mobile GAGAL!" -ForegroundColor Red; Pop-Location; exit 1
 }
 Pop-Location
 Write-Host "[OK] Mobile built." -ForegroundColor Green
@@ -171,4 +171,3 @@ Write-Host ("  Mobile     : http://" + $VPS_IP + ":8080") -ForegroundColor White
 Write-Host ("  API Backend: http://" + $VPS_IP + ":3002/api") -ForegroundColor White
 Write-Host "============================================================" -ForegroundColor Green
 Write-Host ""
-pause

@@ -5,6 +5,7 @@ import {
   X, Barcode, ArrowRight, Minus, Truck, Calendar, DollarSign, FileText, ChevronDown, Upload, Image as ImageIcon
 } from 'lucide-react';
 import api from '../api';
+import { toast } from 'react-hot-toast';
 
 interface Supplier {
   id: string;
@@ -95,7 +96,7 @@ const PurchaseSupplier: React.FC = () => {
       setSuppliers(supRes.data || []);
     } catch (error: any) {
       console.error('Failed to fetch data', error);
-      alert('Gagal mengambil data produk/supplier. Pastikan backend sudah ter-update.');
+      toast.error('Gagal mengambil data produk/supplier. Pastikan backend sudah ter-update.');
     } finally {
       setIsLoading(false);
     }
@@ -138,7 +139,7 @@ const PurchaseSupplier: React.FC = () => {
 
   const handleSave = async () => {
     if (!supplierId || !invoiceNo || items.length === 0) {
-      alert('Mohon lengkapi data supplier, nomor nota, dan minimal 1 item barang.');
+      toast.error('Mohon lengkapi data supplier, nomor nota, dan minimal 1 item barang.');
       return;
     }
 
@@ -170,7 +171,7 @@ const PurchaseSupplier: React.FC = () => {
         await api.post('/suppliers/purchases', purchaseData);
       }
       
-      alert('Pembelian berhasil dicatat dan stok telah diperbarui!');
+      toast.success('Pembelian berhasil dicatat dan stok telah diperbarui!');
       setItems([]);
       setInvoiceNo('');
       setSupplierId('');
@@ -180,7 +181,7 @@ const PurchaseSupplier: React.FC = () => {
       setPreviewUrl(null);
       fetchData();
     } catch (error: any) {
-      alert('Gagal menyimpan pembelian: ' + (error.response?.data?.error || error.message));
+      toast.error('Gagal menyimpan pembelian: ' + (error.response?.data?.error || error.message));
     } finally {
       setIsSaving(false);
     }

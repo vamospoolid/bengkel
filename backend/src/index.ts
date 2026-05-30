@@ -1857,13 +1857,34 @@ app.post('/api/workshop/orders/:id/photos', authenticate, uploadService.single('
 
 app.patch('/api/work-orders/:id', authenticate, async (req, res) => {
   const { id } = req.params;
-  const { status, mechanicId, services, partsUsed } = req.body;
+  const { 
+    status, 
+    mechanicId, 
+    services, 
+    partsUsed, 
+    plateNumber, 
+    customerName, 
+    model, 
+    vehicleType, 
+    complaint, 
+    photos 
+  } = req.body;
 
   try {
     const existing = await prisma.workOrder.findUnique({ where: { id: id as string } });
     if (!existing) return res.status(404).json({ error: 'Order not found' });
 
-    let updateData: any = { status, mechanicId, services, partsUsed };
+    let updateData: any = {};
+    if (status !== undefined) updateData.status = status;
+    if (mechanicId !== undefined) updateData.mechanicId = mechanicId;
+    if (services !== undefined) updateData.services = services;
+    if (partsUsed !== undefined) updateData.partsUsed = partsUsed;
+    if (plateNumber !== undefined) updateData.plateNumber = plateNumber;
+    if (customerName !== undefined) updateData.customerName = customerName;
+    if (model !== undefined) updateData.model = model;
+    if (vehicleType !== undefined) updateData.vehicleType = vehicleType;
+    if (complaint !== undefined) updateData.complaint = complaint;
+    if (photos !== undefined) updateData.photos = photos;
 
     if (status === 'PROGRESS' && !existing.startTime) {
       updateData.startTime = new Date();
@@ -1876,8 +1897,11 @@ app.patch('/api/work-orders/:id', authenticate, async (req, res) => {
       where: { id: id as string },
       data: updateData
     });
+    
+    io.emit('task-updated', updated);
     res.json(updated);
   } catch (error) {
+    console.error('Failed to update work order:', error);
     res.status(400).json({ error: 'Failed to update work order' });
   }
 });

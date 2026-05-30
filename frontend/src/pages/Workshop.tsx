@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Search, Plus, Wrench, Clock, CheckCircle2, X, User, AlertCircle, Loader2, Trash2, Car, Settings, Phone, ClipboardList, Bike, Camera, Eye } from 'lucide-react';
 import api from '../api';
 import socket from '../socket';
+import { toast } from 'react-hot-toast';
 
 interface WorkshopTask {
   id: string;
@@ -44,10 +45,27 @@ const Workshop: React.FC = () => {
   });
   const [mechanics, setMechanics] = useState<any[]>([]);
 
+  const [allProducts, setAllProducts] = useState<any[]>([]);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [selectedTask, setSelectedTask] = useState<WorkshopTask | null>(null);
+  const [partSearchTerm, setPartSearchTerm] = useState('');
+  const [editTaskData, setEditTaskData] = useState({
+    plateNumber: '',
+    customerName: '',
+    model: '',
+    vehicleType: 'MOTOR' as 'MOTOR' | 'MOBIL',
+    complaint: '',
+    mechanicId: '',
+    services: [] as { name: string; price: number }[],
+    partsUsed: [] as { id: string; name: string; price: number; quantity: number }[],
+    whatsapp: ''
+  });
+
   useEffect(() => {
     fetchTasks();
     fetchMechanics();
     fetchServices();
+    fetchProducts();
 
     // Socket.io Real-time listeners
     socket.on('task-created', () => fetchTasks(true));
@@ -97,9 +115,91 @@ const Workshop: React.FC = () => {
     }
   };
 
+  const fetchProducts = async () => {
+    try {
+      const res = await api.get('/products');
+      setAllProducts(res.data || []);
+    } catch (error) {
+      console.error('Failed to fetch products', error);
+    }
+  };
+
+  const handleOpenEditModal = (task: WorkshopTask) => {
+    setSelectedTask(task);
+    
+    const parseJson = (val: any) => {
+      if (!val) return [];
+      if (typeof val === 'object') return Array.isArray(val) ? val : [val];
+      try {
+        const parsed = JSON.parse(val);
+        return Array.isArray(parsed) ? parsed : [parsed];
+      } catch (e) {
+        return [];
+      }
+    };
+
+    const rawServices = parseJson(task.services);
+    const services = rawServices.map((s: any) => {
+      if (typeof s === 'string') {
+        const found = servicesList.find(item => item.name.toLowerCase() === s.toLowerCase());
+        return { name: s, price: found?.price || 0 };
+      }
+      return { name: s.name, price: s.price };
+    });
+
+    const partsUsed = parseJson((task as any).partsUsed);
+    const mechanicId = mechanics.find(m => m.name === task.mechanicName)?.id || '';
+
+    setEditTaskData({
+      plateNumber: task.plateNumber || '',
+      customerName: task.customerName || '',
+      model: task.model || '',
+      vehicleType: task.vehicleType || 'MOTOR',
+      complaint: task.complaint || '',
+      mechanicId: mechanicId,
+      services: services,
+      partsUsed: partsUsed.map((p: any) => ({
+        id: p.id || p.productId,
+        name: p.name,
+        price: p.price || 0,
+        quantity: p.quantity || 1
+      })),
+      whatsapp: (task as any).whatsapp || ''
+    });
+    setPartSearchTerm('');
+    setShowEditModal(true);
+  };
+
+  const handleSaveEditTask = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedTask) return;
+    setIsSaving(true);
+    try {
+      await api.patch(`/work-orders/${selectedTask.id}`, {
+        plateNumber: editTaskData.plateNumber,
+        customerName: editTaskData.customerName,
+        model: editTaskData.model,
+        vehicleType: editTaskData.vehicleType,
+        complaint: editTaskData.complaint,
+        mechanicId: editTaskData.mechanicId || null,
+        services: editTaskData.services,
+        partsUsed: editTaskData.partsUsed,
+        whatsapp: editTaskData.whatsapp
+      });
+      setShowEditModal(false);
+      setSelectedTask(null);
+      fetchTasks();
+      toast.success('Pembaruan data servis berhasil disimpan!');
+    } catch (err) {
+      toast.error('Gagal memperbarui data servis.');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   const handleCreateTask = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (newTask.services.length === 0) return alert('Pilih minimal satu layanan.');
+    if (newTask.services.length === 0) return toast.error('Pilih minimal satu layanan.');
     setIsSaving(true);
     try {
       await api.post('/work-orders', {
@@ -109,8 +209,9 @@ const Workshop: React.FC = () => {
       setShowAddModal(false);
       setNewTask({ plateNumber: '', customerName: '', model: '', vehicleType: 'MOTOR', complaint: '', mechanicId: '', services: [], whatsapp: '' });
       fetchTasks();
+      toast.success('Tugas bengkel berhasil dibuat!');
     } catch (error) {
-      alert('Gagal membuat tugas bengkel.');
+      toast.error('Gagal membuat tugas bengkel.');
     } finally {
       setIsSaving(false);
     }
@@ -120,8 +221,9 @@ const Workshop: React.FC = () => {
     try {
       await api.patch(`/work-orders/${id}`, { status });
       fetchTasks();
+      toast.success('Status berhasil diperbarui!');
     } catch (error) {
-      alert('Gagal memperbarui status.');
+      toast.error('Gagal memperbarui status.');
     }
   };
 
@@ -130,20 +232,22 @@ const Workshop: React.FC = () => {
     try {
       await api.delete(`/work-orders/${id}`);
       fetchTasks();
+      toast.success('Data unit berhasil dihapus!');
     } catch (error) {
-      alert('Gagal menghapus data.');
+      toast.error('Gagal menghapus data.');
     }
   };
 
   const clearAllDone = async () => {
     const doneCount = tasks.filter(t => t.status === 'DONE').length;
-    if (doneCount === 0) return alert('Tidak ada data yang selesai untuk dibersihkan.');
+    if (doneCount === 0) return toast.error('Tidak ada data yang selesai untuk dibersihkan.');
     if (!confirm(`Hapus ${doneCount} data yang sudah selesai dari dashboard?`)) return;
     try {
       await api.delete('/work-orders');
       fetchTasks();
+      toast.success('Data selesai dibersihkan!');
     } catch (error) {
-      alert('Gagal membersihkan data.');
+      toast.error('Gagal membersihkan data.');
     }
   };
 
@@ -227,7 +331,11 @@ const Workshop: React.FC = () => {
                   </div>
                 ) : (
                   colTasks.map(task => (
-                    <div key={task.id} className="bg-card border border-border rounded-xl p-4 space-y-3 shadow-sm hover:shadow-md transition-all">
+                    <div 
+                      key={task.id} 
+                      onClick={() => handleOpenEditModal(task)}
+                      className="bg-card border border-border rounded-xl p-4 space-y-3 shadow-sm hover:shadow-md transition-all cursor-pointer hover:border-primary/45"
+                    >
                       {/* Plate & Type */}
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
@@ -236,7 +344,7 @@ const Workshop: React.FC = () => {
                             : <Car className="w-4 h-4 text-muted-foreground" />}
                           <span className="font-black text-base tracking-widest">{task.plateNumber}</span>
                         </div>
-                        <button onClick={() => deleteTask(task.id)} className="p-1 text-zinc-600 hover:text-red-500 transition-colors">
+                        <button onClick={(e) => { e.stopPropagation(); deleteTask(task.id); }} className="p-1 text-zinc-600 hover:text-red-500 transition-colors">
                           <X className="w-3.5 h-3.5" />
                         </button>
                       </div>
@@ -266,6 +374,22 @@ const Workshop: React.FC = () => {
                         ))}
                       </div>
 
+                      {/* Parts Used */}
+                      {(task as any).partsUsed && (
+                        <div className="flex flex-wrap gap-1">
+                          {(() => {
+                            const parsedParts = typeof (task as any).partsUsed === 'string' 
+                              ? (JSON.parse((task as any).partsUsed) || []) 
+                              : ((task as any).partsUsed || []);
+                            return Array.isArray(parsedParts) ? parsedParts.map((p: any, i) => (
+                              <span key={i} className="px-2 py-0.5 bg-green-500/10 border border-green-500/20 rounded-md text-[10px] font-bold text-green-500 flex items-center gap-1">
+                                <Wrench className="w-2.5 h-2.5" /> {p.name} ({p.quantity}x)
+                              </span>
+                            )) : null;
+                          })()}
+                        </div>
+                      )}
+
                       {/* Mechanic */}
                       {task.mechanicName && (
                         <div className="flex items-center gap-1.5 pt-2 border-t border-border">
@@ -279,7 +403,7 @@ const Workshop: React.FC = () => {
                       {/* Action */}
                       {STATUS_NEXT[task.status] && (
                         <button
-                          onClick={() => updateStatus(task.id, STATUS_NEXT[task.status]!)}
+                          onClick={(e) => { e.stopPropagation(); updateStatus(task.id, STATUS_NEXT[task.status]!); }}
                           className="w-full py-2 bg-primary/10 text-primary border border-primary/20 rounded-lg text-[11px] font-black hover:bg-primary hover:text-white transition-all"
                         >
                           → {STATUS_NEXT_LABEL[task.status]}
@@ -457,6 +581,299 @@ const Workshop: React.FC = () => {
                   className="flex-1 py-3 bg-primary text-white rounded-xl font-black text-sm shadow-lg shadow-primary/20 hover:scale-[1.02] active:scale-95 transition-all disabled:opacity-50 flex items-center justify-center gap-2">
                   {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
                   MULAI ANTREAN
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Modal */}
+      {showEditModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <div className="bg-card border border-border rounded-3xl w-full max-w-4xl max-h-[90vh] overflow-y-auto shadow-2xl">
+            <div className="p-6 border-b border-border flex items-center justify-between sticky top-0 bg-card z-10">
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 bg-primary/10 rounded-xl"><Wrench className="w-5 h-5 text-primary" /></div>
+                <div>
+                  <h4 className="font-black text-lg">EDIT DATA SERVIS / KENDARAAN</h4>
+                  <p className="text-xs text-muted-foreground">Sesuaikan detail kendaraan, jasa servis, dan suku cadang yang digunakan.</p>
+                </div>
+              </div>
+              <button onClick={() => { setShowEditModal(false); setSelectedTask(null); }} className="p-2 hover:bg-muted rounded-xl transition-all">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveEditTask} className="p-6 space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Left Column - Vehicle Identitas & Mechanic */}
+                <div className="space-y-5">
+                  <div>
+                    <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest block mb-2">Identitas Kendaraan</label>
+                    <div className="flex gap-2 mb-3">
+                      {(['MOTOR', 'MOBIL'] as const).map(type => (
+                        <button key={type} type="button" onClick={() => setEditTaskData(p => ({ ...p, vehicleType: type }))}
+                          className={`flex items-center gap-2 px-4 py-2 rounded-xl font-black text-xs transition-all border-2 ${editTaskData.vehicleType === type ? 'bg-primary border-primary text-white' : 'border-border bg-muted/40 text-muted-foreground'}`}>
+                          {type === 'MOTOR' ? <Bike className="w-4 h-4" /> : <Car className="w-4 h-4" />} {type}
+                        </button>
+                      ))}
+                    </div>
+                    <input 
+                      required type="text" placeholder="B 1234 ABC"
+                      value={editTaskData.plateNumber} onChange={e => setEditTaskData(p => ({ ...p, plateNumber: e.target.value.toUpperCase() }))}
+                      className="w-full bg-zinc-900 border border-zinc-700 rounded-xl px-4 py-3 text-xl font-black tracking-[0.25em] text-center uppercase focus:outline-none focus:ring-2 focus:ring-primary/40 placeholder:text-zinc-600" />
+                  </div>
+
+                  <div className="grid grid-cols-3 gap-3">
+                    <div className="col-span-1">
+                      <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest block mb-1.5">Pemilik</label>
+                      <input 
+                        type="text" placeholder="Nama Pelanggan" value={editTaskData.customerName} onChange={e => setEditTaskData(p => ({ ...p, customerName: e.target.value }))}
+                        className="w-full bg-muted border border-border rounded-xl px-3 py-2.5 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-primary/30" />
+                    </div>
+                    <div className="col-span-1">
+                      <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest block mb-1.5">Model</label>
+                      <input 
+                        type="text" placeholder="Model Unit" value={editTaskData.model} onChange={e => setEditTaskData(p => ({ ...p, model: e.target.value }))}
+                        className="w-full bg-muted border border-border rounded-xl px-3 py-2.5 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-primary/30" />
+                    </div>
+                    <div className="col-span-1">
+                      <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest block mb-1.5">WhatsApp</label>
+                      <input 
+                        type="tel" placeholder="No WhatsApp" value={editTaskData.whatsapp} onChange={e => setEditTaskData(p => ({ ...p, whatsapp: e.target.value }))}
+                        className="w-full bg-muted border border-border rounded-xl px-3 py-2.5 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-primary/30" />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest block mb-2">Pilih Mekanik</label>
+                    <div className="grid grid-cols-2 gap-2">
+                      {mechanics.map(m => (
+                        <label key={m.id} className={`flex items-center gap-2.5 p-2.5 rounded-xl border-2 cursor-pointer transition-all ${editTaskData.mechanicId === m.id ? 'border-primary bg-primary/10' : 'border-border bg-muted/30 hover:border-primary/30'}`}>
+                          <input type="radio" name="mechanic_edit" value={m.id} checked={editTaskData.mechanicId === m.id}
+                            onChange={() => setEditTaskData(p => ({ ...p, mechanicId: m.id }))} className="sr-only" />
+                          <div className={`w-7 h-7 rounded-full flex items-center justify-center font-black text-xs shrink-0 ${editTaskData.mechanicId === m.id ? 'bg-primary text-white' : 'bg-muted text-muted-foreground'}`}>
+                            {m.name?.charAt(0)}
+                          </div>
+                          <span className="font-bold text-xs">{m.name}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest block mb-2">Detail Keluhan</label>
+                    <textarea 
+                      rows={3} placeholder="Tuliskan keluhan..." value={editTaskData.complaint}
+                      onChange={e => setEditTaskData(p => ({ ...p, complaint: e.target.value }))}
+                      className="w-full bg-muted border border-border rounded-xl px-4 py-3 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-primary/30 resize-none" />
+                  </div>
+                </div>
+
+                {/* Right Column - Services & Parts Used */}
+                <div className="space-y-5">
+                  {/* Services */}
+                  <div>
+                    <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest block mb-2">Daftar Layanan Jasa</label>
+                    <div className="space-y-2 max-h-48 overflow-y-auto pr-1 border border-border rounded-xl p-3 bg-muted/10">
+                      {servicesList.map(svc => {
+                        const selectedService = editTaskData.services.find(s => s.name === svc.name);
+                        const checked = !!selectedService;
+                        
+                        return (
+                          <div key={svc.id} className={`flex flex-col p-2.5 rounded-lg border transition-all ${checked ? 'border-primary bg-primary/5' : 'border-border/60 bg-card hover:border-primary/20'}`}>
+                            <div className="flex items-center justify-between">
+                              <label className="flex items-center gap-2.5 cursor-pointer">
+                                <div className={`w-3.5 h-3.5 rounded border flex items-center justify-center transition-all ${checked ? 'bg-primary border-primary' : 'border-muted-foreground/30'}`}>
+                                  {checked && <CheckCircle2 className="w-2.5 h-2.5 text-white" />}
+                                </div>
+                                <input type="checkbox" checked={checked} onChange={() => {
+                                  if (checked) {
+                                    setEditTaskData(p => ({ ...p, services: p.services.filter(s => s.name !== svc.name) }));
+                                  } else {
+                                    setEditTaskData(p => ({ ...p, services: [...p.services, { name: svc.name, price: svc.price }] }));
+                                  }
+                                }} className="sr-only" />
+                                <span className={`font-bold text-xs ${checked ? 'text-primary' : ''}`}>{svc.name}</span>
+                              </label>
+                              <span className="text-[9px] font-bold text-muted-foreground">Rp {svc.price?.toLocaleString('id-ID')}</span>
+                            </div>
+                            
+                            {checked && (
+                              <div className="flex items-center gap-2 mt-2 pt-2 border-t border-border/40 animate-in slide-in-from-top-1">
+                                <span className="text-[9px] font-black text-muted-foreground uppercase">Harga:</span>
+                                <div className="relative flex-1">
+                                  <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[9px] font-black text-muted-foreground">Rp</span>
+                                  <input 
+                                    type="number" 
+                                    value={selectedService.price}
+                                    onChange={(e) => {
+                                      const newPrice = Number(e.target.value);
+                                      setEditTaskData(p => ({
+                                        ...p,
+                                        services: p.services.map(s => s.name === svc.name ? { ...s, price: newPrice } : s)
+                                      }));
+                                    }}
+                                    className="w-full bg-card border border-primary/20 rounded-md pl-7 pr-2 py-1 text-[10px] font-black focus:outline-none focus:border-primary transition-all"
+                                  />
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Parts Used */}
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest block">Suku Cadang / Barang yang Dipakai</label>
+                      <span className="text-[9px] font-black text-primary bg-primary/10 px-2 py-0.5 rounded-full">Inventory Sync</span>
+                    </div>
+
+                    {/* Product Search */}
+                    <div className="relative mb-3">
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                      <input 
+                        type="text" 
+                        placeholder="Ketik nama barang atau scan barcode..." 
+                        value={partSearchTerm}
+                        onChange={e => setPartSearchTerm(e.target.value)}
+                        className="w-full bg-muted border border-border rounded-xl pl-9 pr-4 py-2.5 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-primary/30"
+                      />
+                      {partSearchTerm.trim().length > 1 && (
+                        <div className="absolute left-0 right-0 top-full mt-1 bg-card border border-border rounded-xl shadow-xl max-h-40 overflow-y-auto z-20 p-2 space-y-1">
+                          {allProducts
+                            .filter(p => p.name?.toLowerCase().includes(partSearchTerm.toLowerCase()) || p.barcode?.includes(partSearchTerm) || p.partNumber?.toLowerCase().includes(partSearchTerm.toLowerCase()))
+                            .slice(0, 6)
+                            .map(p => (
+                              <button
+                                key={p.id}
+                                type="button"
+                                onClick={() => {
+                                  const existingPart = editTaskData.partsUsed.find(item => item.id === p.id);
+                                  if (existingPart) {
+                                    setEditTaskData(prev => ({
+                                      ...prev,
+                                      partsUsed: prev.partsUsed.map(item => item.id === p.id ? { ...item, quantity: item.quantity + 1 } : item)
+                                    }));
+                                  } else {
+                                    setEditTaskData(prev => ({
+                                      ...prev,
+                                      partsUsed: [...prev.partsUsed, { id: p.id, name: p.name, price: p.priceNormal, quantity: 1 }]
+                                    }));
+                                  }
+                                  setPartSearchTerm('');
+                                  toast.success(`Barang ditambahkan: ${p.name}`);
+                                }}
+                                className="w-full flex items-center justify-between p-2 hover:bg-primary/10 rounded-lg text-left text-xs font-bold transition-all border border-transparent hover:border-primary/20"
+                              >
+                                <div className="min-w-0 flex-1">
+                                  <p className="truncate">{p.name}</p>
+                                  <p className="text-[9px] text-muted-foreground">{p.brand || 'No Brand'} {p.partNumber ? `| No: ${p.partNumber}` : ''}</p>
+                                </div>
+                                <span className="text-[10px] text-muted-foreground shrink-0 pl-2">Stok: {p.stock} | Rp {p.priceNormal.toLocaleString()}</span>
+                              </button>
+                            ))}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Added Parts List */}
+                    <div className="space-y-2 max-h-48 overflow-y-auto pr-1 border border-border rounded-xl p-3 bg-muted/10">
+                      {editTaskData.partsUsed.length === 0 ? (
+                        <p className="text-xs text-muted-foreground italic text-center py-4">Belum ada barang/suku cadang yang dipakai.</p>
+                      ) : (
+                        editTaskData.partsUsed.map(part => {
+                          const dbProduct = allProducts.find(p => p.id === part.id);
+                          const stock = dbProduct ? dbProduct.stock : 0;
+                          
+                          return (
+                            <div key={part.id} className="flex items-center justify-between p-2 bg-card border border-border/80 rounded-lg text-[11px] gap-2">
+                              <div className="min-w-0 flex-1">
+                                <p className="font-bold truncate">{part.name}</p>
+                                <p className="text-[9px] text-muted-foreground">Stok gudang: {stock}</p>
+                              </div>
+                              <div className="flex items-center gap-1.5 shrink-0">
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setEditTaskData(prev => ({
+                                      ...prev,
+                                      partsUsed: prev.partsUsed.map(item => item.id === part.id ? { ...item, quantity: Math.max(1, item.quantity - 1) } : item)
+                                    }));
+                                  }}
+                                  className="p-1 bg-muted rounded hover:bg-red-500/10 hover:text-red-500 transition-all"
+                                >
+                                  <Minus className="w-3 h-3" />
+                                </button>
+                                <span className="w-6 text-center font-bold">{part.quantity}</span>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    if (part.quantity >= stock) {
+                                      toast.error(`Stok tidak mencukupi! Tersisa: ${stock}`);
+                                      return;
+                                    }
+                                    setEditTaskData(prev => ({
+                                      ...prev,
+                                      partsUsed: prev.partsUsed.map(item => item.id === part.id ? { ...item, quantity: item.quantity + 1 } : item)
+                                    }));
+                                  }}
+                                  className="p-1 bg-muted rounded hover:bg-green-500/10 hover:text-green-500 transition-all"
+                                >
+                                  <Plus className="w-3 h-3" />
+                                </button>
+                              </div>
+                              <div className="w-20 shrink-0 relative">
+                                <span className="absolute left-1 top-1/2 -translate-y-1/2 text-[8px] text-muted-foreground font-black">Rp</span>
+                                <input
+                                  type="number"
+                                  value={part.price}
+                                  onChange={e => {
+                                    const val = parseInt(e.target.value) || 0;
+                                    setEditTaskData(prev => ({
+                                      ...prev,
+                                      partsUsed: prev.partsUsed.map(item => item.id === part.id ? { ...item, price: val } : item)
+                                    }));
+                                  }}
+                                  className="w-full bg-background border border-border rounded pl-4 pr-1 py-0.5 text-right font-bold text-[10px]"
+                                />
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setEditTaskData(prev => ({
+                                    ...prev,
+                                    partsUsed: prev.partsUsed.filter(item => item.id !== part.id)
+                                  }));
+                                  toast.success(`Barang dihapus: ${part.name}`);
+                                }}
+                                className="p-1 text-muted-foreground hover:text-red-500 transition-colors"
+                              >
+                                <Trash2 className="w-3 h-3" />
+                              </button>
+                            </div>
+                          );
+                        })
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Submit / Action Buttons */}
+              <div className="flex gap-3 pt-3 border-t border-border">
+                <button type="button" onClick={() => { setShowEditModal(false); setSelectedTask(null); }}
+                  className="px-6 py-3 bg-muted text-muted-foreground rounded-xl font-black text-sm hover:bg-muted/70 transition-all">
+                  BATAL
+                </button>
+                <button type="submit" disabled={isSaving || !editTaskData.plateNumber || (editTaskData.services.length === 0 && editTaskData.partsUsed.length === 0)}
+                  className="flex-1 py-3 bg-primary text-white rounded-xl font-black text-sm shadow-lg shadow-primary/20 hover:scale-[1.01] active:scale-95 transition-all disabled:opacity-50 flex items-center justify-center gap-2">
+                  {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
+                  SIMPAN PERUBAHAN
                 </button>
               </div>
             </form>
