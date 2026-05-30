@@ -2357,13 +2357,13 @@ app.delete('/api/suppliers/purchases/:id', authenticate, authorize(['ADMIN']), a
         }
       }
 
-      // 3. Delete related stock logs that reference this purchase
-      await tx.stockLog.deleteMany({ where: { purchaseId: id } });
+      // 3. Delete related cashflow records
+      await tx.cashflow.deleteMany({ where: { purchaseId: id } });
 
-      // 4. Delete purchase items
-      await tx.purchaseItem.deleteMany({ where: { purchaseId: id } });
+      // 4. Delete related stock logs that reference this purchase by its invoiceNo
+      await tx.stockLog.deleteMany({ where: { reference: purchase.invoiceNo } });
 
-      // 5. Delete the purchase itself
+      // 5. Delete the purchase itself (cascade will delete purchase items)
       await tx.supplierPurchase.delete({ where: { id } });
     });
 
@@ -2373,6 +2373,9 @@ app.delete('/api/suppliers/purchases/:id', authenticate, authorize(['ADMIN']), a
     res.status(400).json({ error: error.message || 'Gagal menghapus nota' });
   }
 });
+
+
+
 
 const DEFAULT_SETTINGS: Record<string, string[]> = {
   categories: ['Oli', 'Ban', 'Aki', 'Busi', 'Rem', 'Kampas', 'Filter', 'Body', 'Aksesori', 'Lainnya'],
