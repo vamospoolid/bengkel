@@ -2334,6 +2334,46 @@ app.post('/api/suppliers/purchases/:id/return', authenticate, authorize(['ADMIN'
   }
 });
 
+// Delete Purchase (reverse stock + delete records)
+app.delete('/api/suppliers/purchases/:id', authenticate, authorize(['ADMIN']), async (req: any, res: any) => {
+  const { id } = req.params;
+  try {
+    await prisma.$transaction(async (tx) => {
+      // 1. Fetch the purchase with items
+      const purchase = await tx.supplierPurchase.findUnique({
+        where: { id },
+        include: { items: { include: { product: true } } }
+      });
+      if (!purchase) throw new Error('Nota tidak ditemukan');
+
+      // 2. Reverse stock for each item (deduct what was added)
+      for (const item of purchase.items) {
+        const effectiveQty = item.quantity - (item.returnedQty || 0);
+        if (effectiveQty > 0) {
+          await tx.product.update({
+            where: { id: item.productId },
+            data: { stock: { decrement: effectiveQty } }
+          });
+        }
+      }
+
+      // 3. Delete related stock logs that reference this purchase
+      await tx.stockLog.deleteMany({ where: { purchaseId: id } });
+
+      // 4. Delete purchase items
+      await tx.purchaseItem.deleteMany({ where: { purchaseId: id } });
+
+      // 5. Delete the purchase itself
+      await tx.supplierPurchase.delete({ where: { id } });
+    });
+
+    res.json({ message: 'Nota pembelian berhasil dihapus dan stok dikembalikan.' });
+  } catch (error: any) {
+    console.error('DELETE PURCHASE ERROR:', error);
+    res.status(400).json({ error: error.message || 'Gagal menghapus nota' });
+  }
+});
+
 const DEFAULT_SETTINGS: Record<string, string[]> = {
   categories: ['Oli', 'Ban', 'Aki', 'Busi', 'Rem', 'Kampas', 'Filter', 'Body', 'Aksesori', 'Lainnya'],
   etalase: ['Rak A1', 'Rak A2', 'Rak B1', 'Rak B2', 'Rak C1', 'Gudang', 'Display Depan']

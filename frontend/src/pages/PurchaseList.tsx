@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Calendar, FileText, Truck, AlertTriangle, CheckCircle2, ChevronRight, Loader2, Clock, Filter, X } from 'lucide-react';
+import { Search, Calendar, FileText, Truck, AlertTriangle, CheckCircle2, ChevronRight, Loader2, Clock, Filter, X, Trash2 } from 'lucide-react';
 import api from '../api';
+import { toast } from 'react-hot-toast';
 import ConfirmModal from '../components/ConfirmModal';
 
 interface PurchaseItem {
@@ -46,7 +47,7 @@ const PurchaseList: React.FC = () => {
       .filter(([_, data]) => data.qty > 0)
       .map(([id, data]) => ({ purchaseItemId: id, qty: data.qty, reason: data.reason }));
 
-    if (itemsToReturn.length === 0) return alert('Pilih barang yang akan diretur');
+    if (itemsToReturn.length === 0) return toast.error('Pilih barang yang akan diretur');
 
     setIsReturning(true);
     try {
@@ -55,8 +56,9 @@ const PurchaseList: React.FC = () => {
       setSelectedPurchase(null);
       setReturnItems({});
       fetchPurchases();
+      toast.success('Retur berhasil diproses!');
     } catch (error: any) {
-      alert('Gagal memproses retur: ' + (error.response?.data?.error || error.message));
+      toast.error('Gagal memproses retur: ' + (error.response?.data?.error || error.message));
     } finally {
       setIsReturning(false);
     }
@@ -72,11 +74,30 @@ const PurchaseList: React.FC = () => {
       onConfirm: async () => {
         try {
           await api.post(`/suppliers/purchases/${selectedPurchase.id}/pay`);
-          alert('Nota berhasil dilunasi!');
+          toast.success('Nota berhasil dilunasi!');
           setSelectedPurchase(null);
           fetchPurchases();
         } catch (error: any) {
-          alert('Gagal melunasi nota: ' + (error.response?.data?.error || error.message));
+          toast.error('Gagal melunasi nota: ' + (error.response?.data?.error || error.message));
+        }
+      }
+    });
+  };
+
+  const handleDeletePurchase = () => {
+    if (!selectedPurchase) return;
+    setConfirmData({
+      isOpen: true,
+      title: '🗑️ Hapus Nota Pembelian',
+      message: `Hapus nota "${selectedPurchase.invoiceNo}" dari ${selectedPurchase.supplier.name}?\n\nStok barang yang masuk dari nota ini akan DIKURANGI kembali. Tindakan ini tidak bisa dibatalkan!`,
+      onConfirm: async () => {
+        try {
+          await api.delete(`/suppliers/purchases/${selectedPurchase.id}`);
+          toast.success('Nota berhasil dihapus dan stok dikembalikan!');
+          setSelectedPurchase(null);
+          fetchPurchases();
+        } catch (error: any) {
+          toast.error('Gagal menghapus nota: ' + (error.response?.data?.error || error.message));
         }
       }
     });
@@ -310,6 +331,7 @@ const PurchaseList: React.FC = () => {
                     </button>
                   )}
                   <button onClick={() => { setReturnItems({}); setShowReturnModal(true); }} className="px-6 py-3 bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white border border-red-500/20 rounded-xl font-black text-xs uppercase tracking-widest transition-all">Retur Barang</button>
+                  <button onClick={handleDeletePurchase} className="px-5 py-3 bg-red-700/20 text-red-400 hover:bg-red-700 hover:text-white border border-red-700/30 rounded-xl font-black text-xs uppercase tracking-widest transition-all flex items-center gap-2"><Trash2 className="w-3.5 h-3.5" /> Hapus Nota</button>
                   <button onClick={() => setSelectedPurchase(null)} className="px-8 py-3 bg-white/10 hover:bg-white/20 rounded-xl font-black text-xs uppercase tracking-widest transition-all">Tutup Detail</button>
                 </div>
             </div>
