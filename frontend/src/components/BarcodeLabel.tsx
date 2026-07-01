@@ -502,7 +502,7 @@ const BarcodeLabel: React.FC<BarcodeLabelProps> = ({ product, products = [], wor
                 {initialProducts.map(p => 
                   Array.from({ length: productQtys[p.id] || 0 }).map((_, i) => (
                     <SingleLabelPrint
-                      key={`${p.id}-${i}`}
+                      key={`${p.id}-${p.barcode}-${i}`}
                       product={p}
                       size={size}
                       workshopName={workshopName}
@@ -578,30 +578,30 @@ const BarcodeLabel: React.FC<BarcodeLabelProps> = ({ product, products = [], wor
 const SingleLabelPrint: React.FC<{ product: Product; size: string; workshopName: string; showPrice: boolean }> = ({
   product, size, workshopName, showPrice
 }) => {
+  const svgRef = useRef<SVGSVGElement>(null);
   const cfg = SIZES[size] || SIZES.medium;
-  const [imgData, setImgData] = useState<string | null>(null);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
-    if (canvasRef.current && product.barcode) {
+    if (svgRef.current && product.barcode) {
       try {
-        JsBarcode(canvasRef.current, product.barcode, {
+        JsBarcode(svgRef.current, product.barcode, {
           format: 'CODE128',
           width: cfg.barcodeW,
           height: cfg.barcodeH,
           displayValue: true,
-          fontSize: cfg.fontSize + 2,
+          fontSize: cfg.fontSize + 1,
           textMargin: 2,
           margin: 0,
           background: '#ffffff',
           lineColor: '#000000',
         });
-        setImgData(canvasRef.current.toDataURL('image/png'));
       } catch (e) {
         console.error('Print barcode error:', e);
       }
     }
   }, [product.barcode, size, cfg]);
+
+  const isSmallLabel = size.startsWith('label2') || size.startsWith('label3');
 
   return (
     <div
@@ -613,28 +613,23 @@ const SingleLabelPrint: React.FC<{ product: Product; size: string; workshopName:
         flexDirection: 'column',
         alignItems: 'center',
         justifyContent: 'center',
-        padding: '1mm',
+        padding: isSmallLabel ? '0.5mm 1mm' : '2mm 2mm',
         background: '#fff',
         boxSizing: 'border-box',
         overflow: 'hidden',
-        gap: '1px',
-        border: '0.1mm solid #eee'
+        gap: isSmallLabel ? '0px' : '1px',
+        border: 'none !important',
       }}
     >
-      <canvas ref={canvasRef} style={{ display: 'none' }} />
-      <p style={{ fontSize: `${cfg.fontSize - 1}px`, fontFamily: 'Arial, sans-serif', color: '#000', letterSpacing: '0.1em', textTransform: 'uppercase', margin: 0, fontWeight: 'bold' }}>
+      <p style={{ fontSize: `${cfg.fontSize - 1}px`, fontFamily: 'Arial, sans-serif', color: '#000', letterSpacing: '0.1em', textTransform: 'uppercase', margin: 0, fontWeight: 'bold', lineHeight: 1 }}>
         {workshopName}
       </p>
-      <p style={{ fontSize: `${cfg.fontSize + 2}px`, fontFamily: 'Arial, sans-serif', color: '#000', fontWeight: '900', margin: 0, textAlign: 'center', lineHeight: 1, maxWidth: '100%', overflow: 'hidden', textTransform: 'uppercase', display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical' }}>
+      <p style={{ fontSize: `${cfg.fontSize + 1}px`, fontFamily: 'Arial, sans-serif', color: '#000', fontWeight: '900', margin: 0, textAlign: 'center', lineHeight: 1.1, maxWidth: '100%', overflow: 'hidden', textTransform: 'uppercase', display: '-webkit-box', WebkitLineClamp: isSmallLabel ? 1 : 3, WebkitBoxOrient: 'vertical' }}>
         {product.name}
       </p>
-      {imgData ? (
-        <img src={imgData} style={{ maxWidth: '95%', height: 'auto', display: 'block' }} alt="barcode" />
-      ) : (
-        <div style={{ height: `${cfg.barcodeH}px` }} />
-      )}
+      <svg ref={svgRef} style={{ maxWidth: '100%', display: 'block' }} />
       {showPrice && (
-        <p style={{ fontSize: `${cfg.fontSize + 1.5}px`, fontFamily: 'Arial, sans-serif', color: '#000', fontWeight: '900', margin: 0 }}>
+        <p style={{ fontSize: `${cfg.fontSize + 1}px`, fontFamily: 'Arial, sans-serif', color: '#000', fontWeight: '900', margin: 0, letterSpacing: '0.03em' }}>
           Rp {product.priceNormal.toLocaleString('id-ID')}
         </p>
       )}
