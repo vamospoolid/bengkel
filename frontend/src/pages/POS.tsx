@@ -216,6 +216,18 @@ const POS: React.FC = () => {
     } catch (error) {
       console.warn('Workshop profile not found, using defaults');
     }
+
+    try {
+      const printerRes = await api.get('/app-settings/thermal_printer');
+      if (printerRes.data && printerRes.data.items) {
+        const printer = Array.isArray(printerRes.data.items) ? printerRes.data.items[0] : printerRes.data.items;
+        if (printer) {
+          localStorage.setItem('default_printer', printer);
+        }
+      }
+    } catch (error) {
+      console.warn('Failed to fetch default printer settings');
+    }
   };
 
   const fetchData = async () => {
@@ -640,9 +652,12 @@ const POS: React.FC = () => {
   const handleSilentPrint = async (tx: any) => {
     const defaultPrinter = localStorage.getItem('default_printer');
 
-    // Bug #2 fix: use if/else so Electron and web API are mutually exclusive
-    // Previously both paths always ran, causing double print on Electron
-    if ((window as any).electron) {
+    // Deteksi Electron menggunakan 2 cara:
+    // 1. window.electron (dari preload.js via contextBridge)
+    // 2. userAgent mengandung 'ElectronPOS' (fallback yang lebih andal)
+    const isElectron = !!(window as any).electron || navigator.userAgent.includes('ElectronPOS');
+
+    if (isElectron) {
       // === Electron path: direct hardware RAW print ===
       setIsPrinting(true);
       try {
@@ -668,15 +683,34 @@ const POS: React.FC = () => {
         setIsPrinting(false);
       }
     } else {
-      // === Web/VPS path: trigger print via backend API ===
-      setIsPrinting(true);
-      try {
-        await api.post('/print/receipt', { transactionId: tx.id });
-      } catch (err: any) {
-        console.error('Silent print failed', err);
-      } finally {
-        setIsPrinting(false);
-      }
+      // === Web/VPS path: open browser print dialog directly ===
+      // Backend print API only works on Windows desktop, not on Linux VPS
+      const printContent = document.getElementById('receipt-print');
+      if (!printContent) return;
+
+      const windowPrint = window.open('', '', 'left=0,top=0,width=800,height=900,scrollbars=yes');
+      if (!windowPrint) return;
+
+      windowPrint.document.write(`
+        <html>
+          <head>
+            <title>Nota - ${tx?.invoiceNo || ''}</title>
+            <script src="https://cdn.tailwindcss.com"></script>
+            <style>
+              @media print {
+                body { margin: 0; }
+                button { display: none !important; }
+              }
+            </style>
+          </head>
+          <body>
+            ${printContent.outerHTML}
+            <script>window.onload = function() { window.print(); window.close(); };<\/script>
+          </body>
+        </html>
+      `);
+      windowPrint.document.close();
+      windowPrint.focus();
     }
   };
 

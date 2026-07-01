@@ -15,9 +15,15 @@ function createWindow() {
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: false,
-      webSecurity: false 
+      webSecurity: false
     }
   });
+
+  // Tambahkan 'ElectronPOS' ke User-Agent agar frontend bisa deteksi Electron
+  // bahkan jika contextBridge belum ter-load sempurna
+  mainWindow.webContents.setUserAgent(
+    mainWindow.webContents.getUserAgent() + ' ElectronPOS/1.0'
+  );
 
   // CONNECT TO VPS BY DEFAULT
   // Ini memastikan Electron selalu mengambil data terbaru dari Cloud

@@ -23,15 +23,16 @@ interface BarcodeLabelProps {
 
 type LabelSize = 'small' | 'medium' | 'large' | 'label3' | 'large78x100' | 'landscape100x70';
 
-const SIZES: Record<string, { label: string; w: string; h: string; fontSize: number; barcodeW: number; barcodeH: number }> = {
-  small:  { label: '40 × 20 mm',  w: '40mm',  h: '20mm',  fontSize: 5.5,  barcodeW: 1.2, barcodeH: 20 },
-  medium: { label: '60 × 30 mm',  w: '60mm',  h: '30mm',  fontSize: 7,    barcodeW: 1.5, barcodeH: 28 },
-  large:  { label: '80 × 40 mm',  w: '80mm',  h: '40mm',  fontSize: 8.5,  barcodeW: 1.8, barcodeH: 36 },
-  label2: { label: '33 × 15 mm (2 Kolom)', w: '33mm', h: '15mm', fontSize: 5, barcodeW: 0.9, barcodeH: 14 },
-  label3: { label: '33 × 15 mm (3 Kolom)', w: '33mm', h: '15mm', fontSize: 5, barcodeW: 0.9, barcodeH: 14 },
-  large78x100: { label: '78 × 100 mm (Portrait)', w: '78mm', h: '100mm', fontSize: 12, barcodeW: 2.8, barcodeH: 80 },
-  landscape100x70: { label: '100 × 70 mm (Landscape)', w: '100mm', h: '70mm', fontSize: 14, barcodeW: 3, barcodeH: 100 },
-  label40x30: { label: '40 × 30 mm (1 Kolom)', w: '40mm', h: '30mm', fontSize: 10, barcodeW: 1.8, barcodeH: 50 },
+const SIZES: Record<string, { label: string; w: string; h: string; fontSize: number; barcodeW: number; barcodeH: number; gap: string; padding: string }> = {
+  small:  { label: '40 × 20 mm',  w: '40mm',  h: '20mm',  fontSize: 5.5,  barcodeW: 1.2, barcodeH: 20, gap: '0mm', padding: '0mm' },
+  medium: { label: '60 × 30 mm',  w: '60mm',  h: '30mm',  fontSize: 7,    barcodeW: 1.5, barcodeH: 28, gap: '0mm', padding: '0mm' },
+  large:  { label: '80 × 40 mm',  w: '80mm',  h: '40mm',  fontSize: 8.5,  barcodeW: 1.8, barcodeH: 36, gap: '0mm', padding: '0mm' },
+  label2_52x15: { label: '24 × 15 mm (2 Kolom - 52mm)', w: '24mm', h: '15mm', fontSize: 4.5, barcodeW: 0.75, barcodeH: 14, gap: '2mm', padding: '0 1mm' },
+  label2: { label: '33 × 15 mm (2 Kolom)', w: '33mm', h: '15mm', fontSize: 5, barcodeW: 0.9, barcodeH: 14, gap: '2mm', padding: '0 1mm' },
+  label3: { label: '33 × 15 mm (3 Kolom)', w: '33mm', h: '15mm', fontSize: 5, barcodeW: 0.9, barcodeH: 14, gap: '2mm', padding: '0 2mm' },
+  large78x100: { label: '78 × 100 mm (Portrait)', w: '78mm', h: '100mm', fontSize: 12, barcodeW: 2.8, barcodeH: 80, gap: '0mm', padding: '0mm' },
+  landscape100x70: { label: '100 × 70 mm (Landscape)', w: '100mm', h: '70mm', fontSize: 14, barcodeW: 3, barcodeH: 100, gap: '0mm', padding: '0mm' },
+  label40x30: { label: '40 × 30 mm (1 Kolom)', w: '40mm', h: '30mm', fontSize: 10, barcodeW: 1.8, barcodeH: 50, gap: '0mm', padding: '0mm' },
 };
 
 // Single label component - renders one barcode SVG
@@ -109,6 +110,7 @@ const BarcodeLabel: React.FC<BarcodeLabelProps> = ({ product, products = [], wor
   const [labelsPerRow, setLabelsPerRow] = useState(3);
   const [isLoadingSettings, setIsLoadingSettings] = useState(true);
   const [isPrinting, setIsPrinting] = useState(false);
+  const [labelPrinterName, setLabelPrinterName] = useState<string>('');
   const printAreaRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -118,6 +120,15 @@ const BarcodeLabel: React.FC<BarcodeLabelProps> = ({ product, products = [], wor
         if (res.data && res.data.items) {
           const cols = Number(Array.isArray(res.data.items) ? res.data.items[0] : res.data.items);
           if (cols > 0) setLabelsPerRow(cols);
+        }
+
+        const printerRes = await api.get('/app-settings/label_printer');
+        if (printerRes.data && printerRes.data.items) {
+          const name = Array.isArray(printerRes.data.items) ? printerRes.data.items[0] : printerRes.data.items;
+          if (name) {
+            setLabelPrinterName(name);
+            localStorage.setItem('label_printer', name);
+          }
         }
       } catch (error) {
         console.error('Failed to fetch label settings', error);
@@ -140,11 +151,16 @@ const BarcodeLabel: React.FC<BarcodeLabelProps> = ({ product, products = [], wor
   const handleSilentPrint = async () => {
     if (totalLabels === 0) return alert('Pilih minimal 1 label untuk dicetak.');
     setIsPrinting(true);
-    
-    // 1. Coba cara Electron (Silent Print) - PALING STABIL
-    if ((window as any).electron) {
+
+    // Deteksi Electron menggunakan 2 cara:
+    // 1. window.electron (dari preload.js via contextBridge)
+    // 2. userAgent mengandung 'ElectronPOS' (fallback yang lebih andal)
+    const isElectron = !!(window as any).electron || navigator.userAgent.includes('ElectronPOS');
+
+    // 1. Coba cara Electron (Silent Print via print-silent) - PALING STABIL
+    if (isElectron) {
       try {
-        const printerName = localStorage.getItem('label_printer');
+        const printerName = labelPrinterName || localStorage.getItem('label_printer');
         if (!printerName) {
           alert('Printer Label belum diatur di menu Pengaturan.');
           setIsPrinting(false);
@@ -155,8 +171,12 @@ const BarcodeLabel: React.FC<BarcodeLabelProps> = ({ product, products = [], wor
         let widthMicrons = parseInt(cfg.w) * 1000;
         const heightMicrons = parseInt(cfg.h) * 1000;
         
-        if (size === 'label2' || size === 'label3') {
-           widthMicrons = labelsPerRow === 3 ? 105000 : (labelsPerRow === 2 ? 70000 : widthMicrons);
+        if (size === 'label2_52x15') {
+           widthMicrons = 52000;
+        } else if (size === 'label2') {
+           widthMicrons = 70000;
+        } else if (size === 'label3') {
+           widthMicrons = 110000;
         } else if (size === 'label40x30') {
            widthMicrons = 40000;
         } else if (labelsPerRow > 1 && !size.includes('100') && size !== 'label40x30') {
@@ -164,12 +184,50 @@ const BarcodeLabel: React.FC<BarcodeLabelProps> = ({ product, products = [], wor
         }
 
         const html = printAreaRef.current?.innerHTML || '';
+        const columnWidth = cfg.w;
+        const gap = cfg.gap || '0mm';
+        const padding = cfg.padding || '0mm';
+        const wrappedHtml = `
+          <!DOCTYPE html>
+          <html>
+          <head>
+            <style>
+              * { margin: 0; padding: 0; box-sizing: border-box; }
+              @page { margin: 0; }
+              body { margin: 0; padding: 0; background: white; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+              .labels-grid {
+                display: grid;
+                grid-template-columns: repeat(${labelsPerRow}, ${columnWidth});
+                gap: ${gap};
+                padding: ${padding};
+                justify-content: start;
+                align-content: start;
+              }
+              .label-item {
+                page-break-inside: avoid;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
+                overflow: hidden;
+                border: none !important;
+              }
+            </style>
+          </head>
+          <body>
+            <div class="labels-grid">
+              ${html}
+            </div>
+          </body>
+          </html>
+        `;
+
         const success = await (window as any).electron.invoke('print-silent', {
           silent: true,
           deviceName: printerName,
           pageSize: { width: widthMicrons, height: heightMicrons },
           margins: { marginType: 'none' }
-        }, `<html><head><style>@page { margin: 0; } body { margin: 0; padding: 0; }</style></head><body>${html}</body></html>`);
+        }, wrappedHtml);
 
         if (success) {
           setIsPrinting(false);
@@ -178,29 +236,68 @@ const BarcodeLabel: React.FC<BarcodeLabelProps> = ({ product, products = [], wor
       } catch (err) {
         console.error('Electron label print failed', err);
       }
+      setIsPrinting(false);
+      return;
     }
 
-    // 2. Fallback ke Backend (Hanya jika diatur di VPS)
+    // 2. Fallback untuk Browser: gunakan window.print() langsung
     try {
-      const printItems = initialProducts
-        .filter(p => productQtys[p.id] > 0)
-        .map(p => ({
-          product: p,
-          qty: productQtys[p.id]
-        }));
+      const printContent = printAreaRef.current?.innerHTML;
+      if (!printContent) { setIsPrinting(false); return; }
 
-      await api.post('/print/labels', {
-        items: printItems,
-        showPrice,
-        sizeType: size === 'large78x100' ? 'large70x100' : size === 'label3' ? 'label33x15' : size
-      });
+      const cfg = SIZES[size] || SIZES.medium;
+      const columnWidth = cfg.w;
+      const gap = cfg.gap || '0mm';
+      const padding = cfg.padding || '0mm';
+      const win = window.open('', '_blank', 'width=1000,height=800');
+      if (!win) { setIsPrinting(false); return; }
+
+      win.document.write(`
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <title>Print Label</title>
+          <style>
+            * { margin: 0; padding: 0; box-sizing: border-box; }
+            @page { margin: 0; size: auto; }
+            body { margin: 0; background: white; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+            .labels-grid {
+              display: grid;
+              grid-template-columns: repeat(${labelsPerRow}, ${columnWidth});
+              gap: ${gap};
+              padding: ${padding};
+              justify-content: start;
+              align-content: start;
+            }
+            .label-item {
+              page-break-inside: avoid;
+              display: flex;
+              flex-direction: column;
+              align-items: center;
+              justify-content: center;
+              overflow: hidden;
+              border: none !important;
+            }
+          </style>
+        </head>
+        <body>
+          <div class="labels-grid">
+            ${printContent}
+          </div>
+          <script>window.onload = function() { window.print(); window.close(); };<\/script>
+        </body>
+        </html>
+      `);
+      win.document.close();
+      win.focus();
     } catch (error: any) {
-      console.error('Silent print fallback error:', error);
-      alert('Gagal cetak silent. Silakan gunakan metode browser (tombol bawah).');
+      console.error('Browser label print error:', error);
+      alert('Gagal cetak. Silakan gunakan tombol "Cetak Alternatif" di bawah.');
     } finally {
       setIsPrinting(false);
     }
   };
+
 
   const handlePrint = useCallback(() => {
     const printContent = printAreaRef.current?.innerHTML;
@@ -209,7 +306,10 @@ const BarcodeLabel: React.FC<BarcodeLabelProps> = ({ product, products = [], wor
     const win = window.open('', '_blank', 'width=1000,height=800');
     if (!win) return;
 
-    const columnWidth = SIZES[size].w;
+    const cfg = SIZES[size] || SIZES.medium;
+    const columnWidth = cfg.w;
+    const gap = cfg.gap || '0mm';
+    const padding = cfg.padding || '0mm';
 
     win.document.write(`
       <!DOCTYPE html>
@@ -222,18 +322,19 @@ const BarcodeLabel: React.FC<BarcodeLabelProps> = ({ product, products = [], wor
           .labels-grid {
             display: grid;
             grid-template-columns: repeat(${labelsPerRow}, ${columnWidth});
-            gap: 0;
-            padding: 0;
+            gap: ${gap};
+            padding: ${padding};
             justify-content: start;
+            align-content: start;
           }
           .label-item {
             page-break-inside: avoid;
-            border: 0.1mm solid #000;
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
             overflow: hidden;
+            border: none !important;
           }
           @media print {
             body { margin: 0; }
@@ -295,17 +396,23 @@ const BarcodeLabel: React.FC<BarcodeLabelProps> = ({ product, products = [], wor
             <div className="space-y-2">
               <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Ukuran Label</label>
               <div className="grid grid-cols-1 gap-2">
-                {['small', 'medium', 'large', 'label2', 'label3', 'label40x30', 'large78x100', 'landscape100x70'].map(s => (
+                {['small', 'medium', 'large', 'label2_52x15', 'label2', 'label3', 'label40x30', 'large78x100', 'landscape100x70'].map(s => (
                   <button
                     key={s}
-                    onClick={() => setSize(s)}
+                    onClick={() => {
+                      setSize(s);
+                      if (s === 'label2_52x15') setLabelsPerRow(2);
+                      else if (s === 'label2') setLabelsPerRow(2);
+                      else if (s === 'label3') setLabelsPerRow(3);
+                      else if (['small', 'medium', 'large', 'label40x30', 'large78x100', 'landscape100x70'].includes(s)) setLabelsPerRow(1);
+                    }}
                     className={`flex items-center justify-between px-4 py-2.5 rounded-xl border-2 transition-all text-xs font-bold ${
                       size === s
                         ? 'bg-primary/10 border-primary text-primary'
                         : 'bg-muted/30 border-border/50 text-muted-foreground hover:border-primary/30'
                     }`}
                   >
-                    <span className="capitalize">{s === 'large78x100' ? 'Resi Portrait' : s === 'landscape100x70' ? 'Resi Landscape' : s === 'label2' ? 'Label Harga 2 Kol' : s === 'label3' ? 'Label Harga 3 Kol' : s === 'label40x30' ? 'Label 40x30 (1 Kol)' : s}</span>
+                    <span className="capitalize">{s === 'large78x100' ? 'Resi Portrait' : s === 'landscape100x70' ? 'Resi Landscape' : s === 'label2_52x15' ? 'Label 2 Kolom (52mm)' : s === 'label2' ? 'Label Harga 2 Kol' : s === 'label3' ? 'Label Harga 3 Kol' : s === 'label40x30' ? 'Label 40x30 (1 Kol)' : s}</span>
                     <span className="text-[10px] font-mono opacity-70">{SIZES[s].label}</span>
                   </button>
                 ))}
