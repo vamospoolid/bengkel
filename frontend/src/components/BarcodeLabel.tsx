@@ -28,8 +28,8 @@ const SIZES: Record<string, { label: string; w: string; h: string; fontSize: num
   medium: { label: '60 × 30 mm',  w: '60mm',  h: '30mm',  fontSize: 7,    barcodeW: 1.5, barcodeH: 28, gap: '0mm', padding: '0mm' },
   large:  { label: '80 × 40 mm',  w: '80mm',  h: '40mm',  fontSize: 8.5,  barcodeW: 1.8, barcodeH: 36, gap: '0mm', padding: '0mm' },
   label2_52x15: { label: '24 × 15 mm (2 Kolom - 52mm)', w: '24mm', h: '15mm', fontSize: 4.5, barcodeW: 0.75, barcodeH: 14, gap: '2mm', padding: '0 1mm' },
-  label2: { label: '33 × 15 mm (2 Kolom)', w: '33mm', h: '15mm', fontSize: 5, barcodeW: 1.05, barcodeH: 25, gap: '2mm', padding: '0 1mm' },
-  label3: { label: '33 × 15 mm (3 Kolom)', w: '33mm', h: '15mm', fontSize: 5, barcodeW: 1.05, barcodeH: 25, gap: '2mm', padding: '0 2mm' },
+  label2: { label: '33 × 15 mm (2 Kolom)', w: '33mm', h: '15mm', fontSize: 5, barcodeW: 1.0, barcodeH: 25, gap: '2mm', padding: '0 1mm' },
+  label3: { label: '33 × 15 mm (3 Kolom)', w: '33mm', h: '15mm', fontSize: 5, barcodeW: 1.0, barcodeH: 25, gap: '2mm', padding: '0 2mm' },
   large78x100: { label: '78 × 100 mm (Portrait)', w: '78mm', h: '100mm', fontSize: 12, barcodeW: 2.8, barcodeH: 80, gap: '0mm', padding: '0mm' },
   landscape100x70: { label: '100 × 70 mm (Landscape)', w: '100mm', h: '70mm', fontSize: 14, barcodeW: 3, barcodeH: 100, gap: '0mm', padding: '0mm' },
   label40x30: { label: '40 × 30 mm (1 Kolom)', w: '40mm', h: '30mm', fontSize: 10, barcodeW: 1.8, barcodeH: 50, gap: '0mm', padding: '0mm' },
@@ -578,30 +578,29 @@ const BarcodeLabel: React.FC<BarcodeLabelProps> = ({ product, products = [], wor
 const SingleLabelPrint: React.FC<{ product: Product; size: string; workshopName: string; showPrice: boolean }> = ({
   product, size, workshopName, showPrice
 }) => {
-  const svgRef = useRef<SVGSVGElement>(null);
   const cfg = SIZES[size] || SIZES.medium;
-
-  useEffect(() => {
-    if (svgRef.current && product.barcode) {
-      try {
-        JsBarcode(svgRef.current, product.barcode, {
-          format: 'CODE128',
-          width: cfg.barcodeW,
-          height: cfg.barcodeH,
-          displayValue: true,
-          fontSize: cfg.fontSize + 1,
-          textMargin: 2,
-          margin: 0,
-          background: '#ffffff',
-          lineColor: '#000000',
-        });
-      } catch (e) {
-        console.error('Print barcode error:', e);
-      }
-    }
-  }, [product.barcode, size, cfg]);
-
   const isSmallLabel = size.startsWith('label2') || size.startsWith('label3');
+
+  let imgData = '';
+  if (product.barcode) {
+    try {
+      const canvas = document.createElement('canvas');
+      JsBarcode(canvas, product.barcode, {
+        format: 'CODE128',
+        width: cfg.barcodeW,
+        height: cfg.barcodeH,
+        displayValue: true,
+        fontSize: cfg.fontSize + 1,
+        textMargin: 2,
+        margin: 0,
+        background: '#ffffff',
+        lineColor: '#000000',
+      });
+      imgData = canvas.toDataURL('image/png');
+    } catch (e) {
+      console.error('Print barcode synchronous canvas error:', e);
+    }
+  }
 
   return (
     <div
@@ -627,7 +626,20 @@ const SingleLabelPrint: React.FC<{ product: Product; size: string; workshopName:
       <p style={{ fontSize: `${cfg.fontSize + 1}px`, fontFamily: 'Arial, sans-serif', color: '#000', fontWeight: '900', margin: 0, textAlign: 'center', lineHeight: 1.1, maxWidth: '100%', overflow: 'hidden', textTransform: 'uppercase', display: '-webkit-box', WebkitLineClamp: isSmallLabel ? 1 : 3, WebkitBoxOrient: 'vertical' }}>
         {product.name}
       </p>
-      <svg ref={svgRef} style={{ maxWidth: '100%', display: 'block' }} />
+      {imgData ? (
+        <img 
+          src={imgData} 
+          style={{ 
+            maxWidth: '100%', 
+            height: 'auto', 
+            display: 'block',
+            imageRendering: 'pixelated', // ensures sharp black and white print contrast
+          }} 
+          alt="barcode" 
+        />
+      ) : (
+        <div style={{ height: `${cfg.barcodeH}px` }} />
+      )}
       {showPrice && (
         <p style={{ fontSize: `${cfg.fontSize + 1}px`, fontFamily: 'Arial, sans-serif', color: '#000', fontWeight: '900', margin: 0, letterSpacing: '0.03em' }}>
           Rp {product.priceNormal.toLocaleString('id-ID')}
