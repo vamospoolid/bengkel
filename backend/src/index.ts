@@ -996,6 +996,33 @@ app.post('/api/pos/checkout', authenticate, async (req, res) => {
 
   try {
     const result = await prisma.$transaction(async (tx) => {
+      // 0. Idempotency Check: if this transaction ID was already processed, return it immediately
+      if (req.body.id) {
+        const existing = await tx.transaction.findUnique({ 
+          where: { id: req.body.id },
+          include: { items: true, customer: true, vehicle: true }
+        });
+        if (existing) {
+          console.log(`[POS] Duplicate checkout blocked by transaction ID: ${req.body.id}`);
+          return existing;
+        }
+      }
+
+      // 0b. Work Order Check: if linked work order is already ARCHIVED with a transaction, return that transaction
+      if (workOrderId) {
+        const existingWO = await tx.workOrder.findUnique({ where: { id: workOrderId } });
+        if (existingWO && existingWO.status === 'ARCHIVED' && existingWO.transactionId) {
+          const existingTx = await tx.transaction.findUnique({
+            where: { id: existingWO.transactionId },
+            include: { items: true, customer: true, vehicle: true }
+          });
+          if (existingTx) {
+            console.log(`[POS] Duplicate checkout blocked: WorkOrder ${workOrderId} already checked out under ${existingWO.transactionId}`);
+            return existingTx;
+          }
+        }
+      }
+
       // 1. Handle Vehicle (find or create)
       let vehicleId = null;
       if (plateNumber) {
@@ -1336,6 +1363,8 @@ app.post('/api/pos/return-partial', authenticate, async (req, res) => {
               where: { id: item.itemId },
               data: { stock: { increment: ret.qty } }
             });
+
+            io.emit('product-updated', updatedProduct);
 
             await tx.stockLog.create({
               data: {
@@ -2095,7 +2124,7 @@ app.get('/api/suppliers/purchases', authenticate, async (req, res) => {
 });
 
 // Record New Purchase
-app.post('/api/suppliers/purchases', authenticate, authorize(['ADMIN']), uploadInvoice.single('invoice'), async (req: any, res: any) => {
+app.post('/api/suppliers/purchases', authenticate, authorize(['ADMIN', 'CASHIER']), uploadInvoice.single('invoice'), async (req: any, res: any) => {
   // If it's multipart/form-data, the body fields will be strings and need parsing
   const body = req.file ? JSON.parse(req.body.data) : req.body;
   const { supplierId, invoiceNo, purchaseDate, dueDate, items, status, notes } = body;
@@ -2158,6 +2187,8 @@ app.post('/api/suppliers/purchases', authenticate, authorize(['ADMIN']), uploadI
             purchasePrice: Math.round(newAveragePrice) // Update dengan harga rata-rata
           }
         });
+
+        io.emit('product-updated', product);
 
         await tx.stockLog.create({
           data: {
@@ -2399,7 +2430,7 @@ app.get('/api/app-settings/:key', authenticate, async (req, res) => {
 });
 
 // Save (upsert) a setting by key
-app.put('/api/app-settings/:key', authenticate, authorize(['ADMIN']), async (req, res) => {
+app.put('/api/app-settings/:key', authenticate, authorize(['ADMIN', 'CASHIER']), async (req, res) => {
   const { key } = req.params;
   const { items } = req.body; // array of strings
   try {

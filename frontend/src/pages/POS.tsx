@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Search, ShoppingCart, Trash2, Plus, Minus, CreditCard, SearchIcon, History, X, Calendar, Wrench, Loader2, CheckCircle2, User as UserIcon, AlertCircle, RefreshCw, DollarSign, Printer, FileText, Smartphone, ScanLine, Activity, AlertTriangle } from 'lucide-react';
 import api from '../api';
 import Receipt from '../components/Receipt';
+import socket from '../socket';
 import { toast } from 'react-hot-toast';
 import { type CustomerType } from '../data/mock';
 
@@ -105,6 +106,16 @@ const POS: React.FC = () => {
   const [isFetchingDone, setIsFetchingDone] = useState(false);
   
   const searchInputRef = useRef<HTMLInputElement>(null);
+
+  // Synchronous guards to prevent double execution (double click / double Enter)
+  const isCheckoutProcessingRef = useRef(false);
+  const checkoutSessionIdRef = useRef<string | null>(null);
+  const lastScanTimeRef = useRef<{ barcode: string; time: number }>({ barcode: '', time: 0 });
+  const lastGlobalScanRef = useRef<{ barcode: string; time: number }>({ barcode: '', time: 0 });
+  const lastItemClickRef = useRef<{ id: string; time: number }>({ id: '', time: 0 });
+  const barcodeBufferRef = useRef<string>('');
+  const bufferTimeoutRef = useRef<any>(null);
+  const pendingWorkshopTimerRef = useRef<any>(null);
   
   // Custom Service States
   const [showCustomServiceModal, setShowCustomServiceModal] = useState(false);
@@ -122,13 +133,63 @@ const POS: React.FC = () => {
     }, 500);
 
     const interval = setInterval(fetchDoneOrders, 30000); // auto-refresh every 30s
+    
+    // Background quiet stock refresh every 60s
+    const stockInterval = setInterval(() => {
+      fetchData(true);
+    }, 60000);
+
+    // Auto-sync when window gains focus back
+    const handleWindowFocus = () => {
+      fetchData(true);
+      fetchDoneOrders();
+    };
+    window.addEventListener('focus', handleWindowFocus);
+
+    // Socket.io real-time listeners for instant stock and task sync
+    const handleProductUpdated = (updatedProduct: any) => {
+      if (!updatedProduct || !updatedProduct.id) return;
+      setParts(prevParts => {
+        const nextParts = prevParts.map(p => 
+          p.id === updatedProduct.id 
+            ? { 
+                ...p, 
+                stock: updatedProduct.stock, 
+                purchasePrice: updatedProduct.purchasePrice ?? p.purchasePrice, 
+                priceNormal: updatedProduct.priceNormal ?? p.priceNormal 
+              } 
+            : p
+        );
+        try {
+          localStorage.setItem('offline_parts', JSON.stringify(nextParts));
+        } catch (e) {
+          // ignore storage quota issues
+        }
+        return nextParts;
+      });
+    };
+
+    const handleTaskUpdated = () => {
+      fetchDoneOrders();
+    };
+
+    socket.on('product-updated', handleProductUpdated);
+    socket.on('task-updated', handleTaskUpdated);
+
     // Check if plate is in URL
     const params = new URLSearchParams(window.location.search);
     const plate = params.get('plate');
     if (plate) {
       setPlateNumber(plate.toUpperCase());
     }
-    return () => clearInterval(interval);
+
+    return () => {
+      clearInterval(interval);
+      clearInterval(stockInterval);
+      window.removeEventListener('focus', handleWindowFocus);
+      socket.off('product-updated', handleProductUpdated);
+      socket.off('task-updated', handleTaskUpdated);
+    };
   }, []);
 
   const fetchDoneOrders = async () => {
@@ -152,55 +213,61 @@ const POS: React.FC = () => {
     }
     if (pulledWorkOrder) return; // already pulled, don't re-trigger
 
-    const timer = setTimeout(() => {
+    if (pendingWorkshopTimerRef.current) clearTimeout(pendingWorkshopTimerRef.current);
+    pendingWorkshopTimerRef.current = setTimeout(() => {
       pullFromWorkshopAuto(plateNumber.trim());
     }, 800);
 
-    return () => clearTimeout(timer);
+    return () => {
+      if (pendingWorkshopTimerRef.current) clearTimeout(pendingWorkshopTimerRef.current);
+    };
   }, [plateNumber]);
 
-  const [barcodeBuffer, setBarcodeBuffer] = useState('');
-  const bufferTimeout = useRef<any>(null);
-
+  // Global barcode scanner listener (optimized with useRef - zero re-renders while typing)
   useEffect(() => {
     const handleGlobalKeyDown = (e: KeyboardEvent) => {
       // Don't intercept if focus is in an input or textarea
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
 
-      // Reset timeout on every key
-      if (bufferTimeout.current) clearTimeout(bufferTimeout.current);
+      if (bufferTimeoutRef.current) clearTimeout(bufferTimeoutRef.current);
 
       if (e.key === 'Enter') {
-        if (barcodeBuffer.length > 2) {
+        const code = barcodeBufferRef.current.trim();
+        barcodeBufferRef.current = '';
+
+        if (code.length > 2) {
+          const now = Date.now();
+          // 400ms cooldown to ignore CR+LF duplicate Enter
+          if (lastGlobalScanRef.current.barcode === code && now - lastGlobalScanRef.current.time < 400) {
+            return;
+          }
+          lastGlobalScanRef.current = { barcode: code, time: now };
+
           // Find product by barcode
-          const product = parts.find(p => p.barcode === barcodeBuffer);
+          const product = parts.find(p => p.barcode === code);
           if (product) {
             addToCart(product, 'part');
+            toast.success(`Ditambahkan: ${product.name}`, { duration: 1000 });
           }
         }
-        setBarcodeBuffer('');
       } else if (e.key.length === 1) {
-        setBarcodeBuffer(prev => prev + e.key);
-        
-        // If not completed with Enter within 100ms, it's likely manual typing or junk
-        bufferTimeout.current = setTimeout(() => {
-          setBarcodeBuffer('');
-        }, 100);
+        barcodeBufferRef.current += e.key;
+        bufferTimeoutRef.current = setTimeout(() => {
+          barcodeBufferRef.current = '';
+        }, 120);
       }
     };
 
     window.addEventListener('keydown', handleGlobalKeyDown);
     return () => {
       window.removeEventListener('keydown', handleGlobalKeyDown);
-      if (bufferTimeout.current) clearTimeout(bufferTimeout.current);
+      if (bufferTimeoutRef.current) clearTimeout(bufferTimeoutRef.current);
     };
-  }, [barcodeBuffer, parts]);
+  }, [parts]);
 
-  // Bug #9 fix: reset barcode buffer whenever the active tab changes
-  // Prevents stale scan data from a previous tab triggering wrong addToCart
   useEffect(() => {
-    setBarcodeBuffer('');
-    if (bufferTimeout.current) clearTimeout(bufferTimeout.current);
+    barcodeBufferRef.current = '';
+    if (bufferTimeoutRef.current) clearTimeout(bufferTimeoutRef.current);
   }, [activeTab]);
 
   const fetchWorkshopProfile = async () => {
@@ -230,35 +297,39 @@ const POS: React.FC = () => {
     }
   };
 
-  const fetchData = async () => {
-    setIsLoading(true);
-    setError(null);
+  const fetchData = async (silent = false) => {
+    if (!silent) {
+      setIsLoading(true);
+      setError(null);
+    }
 
     // 1. Load dari Cache (Offline) dulu agar langsung tampil
-    try {
-      const cachedParts = localStorage.getItem('offline_parts');
-      const cachedCust = localStorage.getItem('offline_customers');
-      const cachedMech = localStorage.getItem('offline_mechanics');
-      const cachedServ = localStorage.getItem('offline_services');
-      
-      if (cachedParts) {
-        const parsed = JSON.parse(cachedParts);
-        if (Array.isArray(parsed)) setParts(parsed);
+    if (!silent) {
+      try {
+        const cachedParts = localStorage.getItem('offline_parts');
+        const cachedCust = localStorage.getItem('offline_customers');
+        const cachedMech = localStorage.getItem('offline_mechanics');
+        const cachedServ = localStorage.getItem('offline_services');
+        
+        if (cachedParts) {
+          const parsed = JSON.parse(cachedParts);
+          if (Array.isArray(parsed)) setParts(parsed);
+        }
+        if (cachedCust) {
+          const parsed = JSON.parse(cachedCust);
+          if (Array.isArray(parsed)) setCustomers(parsed);
+        }
+        if (cachedMech) {
+          const parsed = JSON.parse(cachedMech);
+          if (Array.isArray(parsed)) setMechanics(parsed);
+        }
+        if (cachedServ) {
+          const parsed = JSON.parse(cachedServ);
+          if (Array.isArray(parsed)) setServices(parsed);
+        }
+      } catch (e) {
+        console.warn("Gagal membaca cache offline");
       }
-      if (cachedCust) {
-        const parsed = JSON.parse(cachedCust);
-        if (Array.isArray(parsed)) setCustomers(parsed);
-      }
-      if (cachedMech) {
-        const parsed = JSON.parse(cachedMech);
-        if (Array.isArray(parsed)) setMechanics(parsed);
-      }
-      if (cachedServ) {
-        const parsed = JSON.parse(cachedServ);
-        if (Array.isArray(parsed)) setServices(parsed);
-      }
-    } catch (e) {
-      console.warn("Gagal membaca cache offline");
     }
 
     try {
@@ -287,14 +358,14 @@ const POS: React.FC = () => {
         localStorage.setItem('offline_services', JSON.stringify(sRes.data));
       }
 
-      if (pRes && pRes.data.length === 0) {
+      if (pRes && pRes.data.length === 0 && !silent) {
         console.warn('No parts returned from server');
       }
 
     } catch (err) {
-      setError('Gagal menghubungi server. Pastikan backend di port 3002 menyala.');
+      if (!silent) setError('Gagal menghubungi server. Pastikan backend di port 3002 menyala.');
     } finally {
-      setIsLoading(false);
+      if (!silent) setIsLoading(false);
     }
   };
 
@@ -323,29 +394,60 @@ const POS: React.FC = () => {
     }));
   };
 
-  const handleKeyDown = (e: React.KeyboardEvent) => {
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter') {
-      // Find matching part by EXACT barcode match
-      const matchingPart = parts.find(p => p.barcode === searchTerm.trim() || p.id === searchTerm.trim());
+      e.preventDefault();
+      if (e.repeat) return;
+
+      const trimmed = searchTerm.trim();
+      if (!trimmed) return;
+
+      const now = Date.now();
+      // Cooldown 400ms for exact same barcode to prevent CR+LF double scanning
+      if (lastScanTimeRef.current.barcode === trimmed && now - lastScanTimeRef.current.time < 400) {
+        return;
+      }
+      lastScanTimeRef.current = { barcode: trimmed, time: now };
+
+      // Clear input immediately in DOM and in state to prevent double execution on rapid events
+      if (searchInputRef.current) {
+        searchInputRef.current.value = '';
+      }
+      setSearchTerm('');
+
+      // Find matching part by EXACT barcode match or ID
+      const matchingPart = parts.find(p => p.barcode === trimmed || p.id === trimmed);
       
       if (matchingPart) {
         addToCart(matchingPart, 'part');
-        setSearchTerm(''); // Clear for next scan
         toast.success(`Ditambahkan: ${matchingPart.name}`, { duration: 1000 });
       } else {
         // Fallback: If only 1 result in the current filter, add that one
         const filteredParts = parts.filter(p => 
-          p.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-          p.barcode.includes(searchTerm)
+          p.name.toLowerCase().includes(trimmed.toLowerCase()) || 
+          p.barcode.includes(trimmed)
         );
         
         if (filteredParts.length === 1) {
           addToCart(filteredParts[0], 'part');
-          setSearchTerm('');
           toast.success(`Ditambahkan: ${filteredParts[0].name}`, { duration: 1000 });
+        } else if (filteredParts.length === 0) {
+          // Jika tidak ada barang yang cocok sama sekali, seleksi teks agar scan berikutnya menimpa
+          searchInputRef.current?.select();
+          toast.error(`Barang tidak ditemukan: ${trimmed}`, { duration: 2000 });
         }
       }
     }
+  };
+
+  const safeAddToCart = (item: any, type: 'part' | 'service') => {
+    const now = Date.now();
+    // Ignore double click if same item clicked within 250ms
+    if (lastItemClickRef.current.id === item.id && now - lastItemClickRef.current.time < 250) {
+      return;
+    }
+    lastItemClickRef.current = { id: item.id, time: now };
+    addToCart(item, type);
   };
 
   const addToCart = (item: any, type: 'part' | 'service') => {
@@ -536,12 +638,22 @@ const POS: React.FC = () => {
       return;
     }
 
+    // Set stable transaction ID for this checkout session
+    if (!checkoutSessionIdRef.current) {
+      checkoutSessionIdRef.current = crypto.randomUUID();
+    }
+
     setShowPaymentModal(true);
   };
 
   const processPayment = async () => {
+    // Synchronous ref check prevents double click / double Enter from triggering 2 payments
+    if (isCheckoutProcessingRef.current) return;
+    isCheckoutProcessingRef.current = true;
     setIsCheckoutProcessing(true);
-    const localTransactionId = crypto.randomUUID();
+
+    const localTransactionId = checkoutSessionIdRef.current || crypto.randomUUID();
+    checkoutSessionIdRef.current = localTransactionId;
     
     const checkoutData = {
       id: localTransactionId,
@@ -594,6 +706,7 @@ const POS: React.FC = () => {
         alert(`ERROR: ${msg}`);
       }
     } finally {
+      isCheckoutProcessingRef.current = false;
       setIsCheckoutProcessing(false);
     }
   };
@@ -605,6 +718,9 @@ const POS: React.FC = () => {
   };
 
   const completeLocalCheckout = (transaction: any, isOffline = false) => {
+    // Reset session ID on successful completion
+    checkoutSessionIdRef.current = null;
+
     // Bug #4 fix: snapshot data BEFORE state is cleared.
     // handleSilentPrint runs in setTimeout — by that time React state
     // (cart, plateNumber, pulledWorkOrder) is already reset to empty.
@@ -612,6 +728,23 @@ const POS: React.FC = () => {
     const vehicleSnapshot = pulledWorkOrder?.vehicle || (plateNumber ? { plateNumber, model: pulledWorkOrder?.model } : null);
     const customerSnapshot = customers.find(c => c.id === selectedCustomerId);
     const cartSnapshot = [...cart];
+
+    // Instantly deduct sold items from local stock so UI is immediately accurate without waiting
+    setParts(prevParts => {
+      const updated = prevParts.map(p => {
+        const soldItem = cartSnapshot.find(c => c.id === p.id && (c.type === 'part' || (c as any).type === 'PART'));
+        if (soldItem) {
+          return { ...p, stock: Math.max(0, p.stock - (soldItem.quantity || 1)) };
+        }
+        return p;
+      });
+      try {
+        localStorage.setItem('offline_parts', JSON.stringify(updated));
+      } catch (e) {
+        // ignore storage quota
+      }
+      return updated;
+    });
 
     setLastTransaction({
       ...transaction,
@@ -630,6 +763,10 @@ const POS: React.FC = () => {
     // Move modal trigger to the end to ensure state is ready
     setShowPaymentModal(false);
     setShowSuccessModal(true);
+
+    // Silent background sync with server to ensure 100% data consistency
+    fetchData(true);
+    fetchDoneOrders();
     
     if (isOffline) {
       toast.success('Offline: Transaksi disimpan secara lokal!');
@@ -758,6 +895,7 @@ const POS: React.FC = () => {
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               onKeyDown={handleKeyDown}
+              onFocus={(e) => e.target.select()}
             />
           </div>
           
@@ -790,6 +928,7 @@ const POS: React.FC = () => {
                   <button 
                     key={order.id}
                     onClick={() => {
+                      if (pendingWorkshopTimerRef.current) clearTimeout(pendingWorkshopTimerRef.current);
                       setCustomerType('Umum');
                       setPlateNumber(order.plateNumber); // Biar kelihatan terisi di kotak plat
                       pullFromWorkshopAuto(order.plateNumber);
@@ -819,7 +958,7 @@ const POS: React.FC = () => {
               <div className="h-full flex flex-col items-center justify-center gap-4 text-center px-10">
                 <AlertCircle className="w-12 h-12 text-red-500" />
                 <p className="font-bold text-red-500">${error}</p>
-                <button onClick={fetchData} className="flex items-center gap-2 px-6 py-2 bg-primary text-white rounded-xl text-sm font-black shadow-lg shadow-primary/20 hover:scale-105 transition-all">
+                <button onClick={() => fetchData()} className="flex items-center gap-2 px-6 py-2 bg-primary text-white rounded-xl text-sm font-black shadow-lg shadow-primary/20 hover:scale-105 transition-all">
                   <RefreshCw className="w-4 h-4" /> COBA LAGI
                 </button>
               </div>
@@ -834,7 +973,7 @@ const POS: React.FC = () => {
                       return (
                         <div 
                           key={part.id} 
-                          onClick={() => addToCart(part, 'part')}
+                          onClick={() => safeAddToCart(part, 'part')}
                           className={`group relative glass-card p-4 rounded-3xl border transition-all cursor-pointer hover:scale-[1.02] active:scale-95 ${
                             inCartQty > 0 ? 'border-primary ring-2 ring-primary/20 bg-primary/5' : 'border-border hover:border-primary/50'
                           }`}
@@ -889,7 +1028,7 @@ const POS: React.FC = () => {
                       return (
                         <div 
                           key={service.id} 
-                          onClick={() => addToCart(service, 'service')}
+                          onClick={() => safeAddToCart(service, 'service')}
                           className={`group relative glass-card p-4 rounded-3xl border transition-all cursor-pointer hover:scale-[1.02] active:scale-95 ${
                             inCartQty > 0 ? 'border-blue-500 ring-2 ring-blue-500/20 bg-blue-500/5' : 'border-border hover:border-blue-500/50'
                           }`}
@@ -1384,7 +1523,10 @@ const POS: React.FC = () => {
                 </div>
               </div>
               <button
-                onClick={() => setShowPaymentModal(false)}
+                onClick={() => {
+                  setShowPaymentModal(false);
+                  checkoutSessionIdRef.current = null;
+                }}
                 className="p-2 hover:bg-muted rounded-xl transition-all text-muted-foreground"
               >
                 <X className="w-5 h-5" />
@@ -1489,7 +1631,15 @@ const POS: React.FC = () => {
                           className="w-full bg-zinc-900 border-2 border-border/50 rounded-2xl pl-16 pr-6 py-4 font-black text-3xl text-primary focus:outline-none focus:border-primary transition-all shadow-inner"
                           value={cashReceived || ''}
                           onChange={e => setCashReceived(Number(e.target.value))}
-                          onKeyDown={e => e.key === 'Enter' && cashReceived >= total && processPayment()}
+                          onKeyDown={e => {
+                            if (e.key === 'Enter') {
+                              e.preventDefault();
+                              if (e.repeat) return;
+                              if (cashReceived >= total && !isCheckoutProcessingRef.current) {
+                                processPayment();
+                              }
+                            }
+                          }}
                         />
                       </div>
                       
@@ -1559,7 +1709,11 @@ const POS: React.FC = () => {
                   </div>
 
                   <button 
-                    onClick={processPayment}
+                    onClick={() => {
+                      if (!isCheckoutProcessingRef.current) {
+                        processPayment();
+                      }
+                    }}
                     disabled={isCheckoutProcessing || (paymentMethod === 'tunai' && cashReceived < total)}
                     className="w-full py-6 bg-orange-600 text-white rounded-[2rem] font-black text-lg shadow-2xl shadow-orange-600/40 hover:bg-orange-500 hover:scale-[1.02] active:scale-95 disabled:opacity-50 disabled:scale-100 transition-all flex items-center justify-center gap-4 uppercase tracking-[0.2em] border-b-4 border-orange-800"
                   >
